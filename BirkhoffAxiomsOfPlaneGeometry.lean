@@ -1,1 +1,2 @@
-import BirkhoffAxiomsOfPlaneGeometry.Basic
+import BirkhoffAxiomsOfPlaneGeometry.Axioms
+import BirkhoffAxiomsOfPlaneGeometry.TestingAxioms
