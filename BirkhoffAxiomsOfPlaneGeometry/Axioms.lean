@@ -1,6 +1,6 @@
 import Mathlib
 
--- this should contain all necessary things (axioms) for Euclidean plane geometry
+-- this should contain all necessary things (axioms) for Euclidean plane geometry, I hope
 structure Birkhoff_geometry where
   point : Type
   line : ∀ {p1 p2 : point}, p1 ≠ p2 → Set point

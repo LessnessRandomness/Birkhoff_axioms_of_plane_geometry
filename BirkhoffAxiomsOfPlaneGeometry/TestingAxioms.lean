@@ -37,7 +37,7 @@ noncomputable def get_point {p1 p2 : point} (_ : p1 ≠ p2) (x : ℝ) : point :=
 
 theorem aux00 (x y : ℝ) : 0 ≤ x ^ 2 + y ^ 2 := by nlinarith
 
-theorem aux01 {p1 p2 : point} (H : p1 ≠ p2) :
+theorem distance_pos {p1 p2 : point} (H : p1 ≠ p2) :
     0 < Real.sqrt ((p2 0 - p1 0) ^ 2 + (p2 1 - p1 1) ^ 2) := by
   have H : Real.sqrt ((p2 0 - p1 0) ^ 2 + (p2 1 - p1 1) ^ 2) ≠ 0 := by
     intro H0; apply H; clear H
@@ -50,32 +50,15 @@ theorem aux01 {p1 p2 : point} (H : p1 ≠ p2) :
   have H0 := Real.sqrt_nonneg ((p2 0 - p1 0) ^ 2 + (p2 1 - p1 1) ^ 2)
   grind
 
-theorem aux01' {p1 p2 : point} (H : p1 ≠ p2) :
+theorem squared_distance_pos {p1 p2 : point} (H : p1 ≠ p2) :
     0 < (p2 0 - p1 0) ^ 2 + (p2 1 - p1 1) ^ 2 := by
-  have H := aux01 H
+  have H := distance_pos H
   exact Real.sqrt_pos.mp H
-
-theorem aux02 {x y : ℝ} (H : y < 0) (H0 : 0 < x / y) : x < 0 := by
-  have H1 : x / y * y < 0 * y := mul_lt_mul_of_neg_right H0 H
-  have H2 : y ≠ 0 := (ne_of_gt H).symm
-  field_simp at H1; simp at H1
-  exact H1
-
-theorem aux03 {x y : ℝ} (H : y < 0) (H0 : x / y ≤ 0) : 0 ≤ x := by
-  have H1 : 0 * y ≤ x / y * y := (mul_le_mul_right_of_neg H).mpr H0
-  have H2 : y ≠ 0 := (ne_of_gt H).symm
-  field_simp at H1; simp at H1
-  exact H1
-
-theorem aux04 {x y : ℝ} (H : 0 < y) (H0 : x / y ≤ 0) : x ≤ 0 := by
-  have H1 : x / y * y ≤ 0 * y := (mul_le_mul_iff_of_pos_right H).mpr H0
-  field_simp at H1; simp at H1
-  exact H1
 
 theorem get_point_property {p1 p2 : point} (H : p1 ≠ p2) (x : ℝ) : get_point H x ∈ line H := by
   unfold get_point line
   simp
-  have H0 := aux01 H
+  have H0 := distance_pos H
   field_simp
 
 set_option maxHeartbeats 1000000 in
@@ -83,14 +66,13 @@ set_option maxHeartbeats 1000000 in
 theorem coordinate_function_property_1 {p1 p2 p : point} {H : p1 ≠ p2} (H0 : p ∈ line H) :
     get_point H (get_coordinate H0) = p := by
   unfold get_point get_coordinate line point at *
-  have H1 := aux01 H
+  have H1 := distance_pos H
+  have H2 := squared_distance_pos H
   simp
   set d := Real.sqrt ((p2 0 - p1 0) ^ 2 + (p2 1 - p1 1) ^ 2)
   set d' := Real.sqrt ((p 0 - p1 0) ^ 2 + (p 1 - p1 1) ^ 2)
-  have d_pos : 0 < d := by
-    unfold d; apply aux01 H
   have d'_nonneg : 0 ≤ d' := by
-    unfold d'; exact Real.sqrt_nonneg ((p 0 - p1 0) ^ 2 + (p 1 - p1 1) ^ 2)
+    unfold d'; apply Real.sqrt_nonneg
   have sq_d : d ^ 2 = (p2 0 - p1 0) ^ 2 + (p2 1 - p1 1) ^ 2 := by
     have H2 := aux00 (p2 0 - p1 0) (p2 1 - p1 1)
     exact Real.sq_sqrt H2
@@ -98,8 +80,8 @@ theorem coordinate_function_property_1 {p1 p2 p : point} {H : p1 ≠ p2} (H0 : p
     have H2 := aux00 (p 0 - p1 0) (p 1 - p1 1)
     exact Real.sq_sqrt H2
   simp at *
-  obtain H2 | H2 := eq_or_ne (p2 0) (p1 0)
-  · rw [H2] at H0 sq_d ⊢
+  obtain H3 | H3 := eq_or_ne (p2 0) (p1 0)
+  · rw [H3] at H0 sq_d ⊢
     simp_all
     obtain H0 | H0 := H0
     · rw [sub_eq_zero] at H0
@@ -109,22 +91,20 @@ theorem coordinate_function_property_1 {p1 p2 p : point} {H : p1 ≠ p2} (H0 : p
       · rw [sub_eq_zero] at H0
         simp [H0] at sq_d'
         rw [sq_eq_sq_iff_abs_eq_abs, abs_of_nonneg d'_nonneg] at sq_d'
-        rw [sq_eq_sq_iff_abs_eq_abs, abs_of_pos d_pos] at sq_d
-        split_ifs <;> rename_i H3
+        rw [sq_eq_sq_iff_abs_eq_abs, abs_of_pos H1] at sq_d
+        split_ifs <;> rename_i H4
         · field_simp
-          have H4 : p2 1 - p1 1 < 0 ∧ p 1 - p1 1 < 0 ∨ 0 < p2 1 - p1 1 ∧ 0 < p 1 - p1 1 :=
-            (RCLike.ofReal_mul_pos_iff (p2 1 - p1 1) (p 1 - p1 1)).mp H3
+          rw [mul_pos_iff] at H4
           obtain ⟨H4, H5⟩ | ⟨H4, H5⟩ := H4
-          · rw [abs_of_neg H5] at sq_d'
-            rw [abs_of_neg H4] at sq_d
-            grind
           · rw [abs_of_pos H5] at sq_d'
             rw [abs_of_pos H4] at sq_d
             grind
-        · simp at H3
-          field_simp
-          have H4 : 0 ≤ p2 1 - p1 1 ∧ p 1 - p1 1 ≤ 0 ∨ p2 1 - p1 1 ≤ 0 ∧ 0 ≤ p 1 - p1 1 :=
-            mul_nonpos_iff.mp H3
+          · rw [abs_of_neg H5] at sq_d'
+            rw [abs_of_neg H4] at sq_d
+            grind
+        · field_simp
+          simp at H4
+          rw [mul_nonpos_iff] at H4
           obtain ⟨H4, H5⟩ | ⟨H4, H5⟩ := H4
           · rw [abs_of_nonpos H5] at sq_d'
             rw [abs_of_nonneg H4] at sq_d
@@ -132,55 +112,60 @@ theorem coordinate_function_property_1 {p1 p2 p : point} {H : p1 ≠ p2} (H0 : p
           · rw [abs_of_nonneg H5] at sq_d'
             rw [abs_of_nonpos H4] at sq_d
             grind
-  · have H3 : p2 0 - p1 0 ≠ 0 := sub_ne_zero_of_ne H2
-    have H4 : p 1 - p1 1 = (p2 1 - p1 1) / (p2 0 - p1 0) * (p 0 - p1 0) := by grind
-    rw [H4] at sq_d'
+  · have H4 : p2 0 - p1 0 ≠ 0 := sub_ne_zero_of_ne H3
+    have H5 : p 1 - p1 1 = (p2 1 - p1 1) / (p2 0 - p1 0) * (p 0 - p1 0) := by grind
+    rw [H5] at sq_d'
     field_simp at sq_d'
     rw [show (p 0 - p1 0) ^ 2 * ((p2 0 - p1 0) ^ 2 + (p2 1 - p1 1) ^ 2) =
              (d * (p 0 - p1 0)) ^ 2 by grind] at sq_d'
     rw [show d' ^ 2 * (p2 0 - p1 0) ^ 2 = (d' * (p2 0 - p1 0)) ^ 2 by grind] at sq_d'
     rw [sq_eq_sq_iff_abs_eq_abs, abs_mul, abs_mul] at sq_d'
-    rw [abs_of_pos d_pos, abs_of_nonneg d'_nonneg] at sq_d'
+    rw [abs_of_pos H1, abs_of_nonneg d'_nonneg] at sq_d'
     have H7 : (p 0 - p1 0) * ((p2 0 - p1 0) ^ 2 + (p2 1 - p1 1) ^ 2) =
               (p 0 - p1 0) * d ^ 2 := by grind
-    split_ifs <;> rename_i H5
-    · rw [H4] at H5
-      field_simp at H5
-      rw [H7] at H5
+    split_ifs <;> rename_i H6
+    · rw [H5] at H6
+      field_simp at H6
+      rw [H7] at H6
       obtain H8 | H8 := lt_or_gt_of_ne H3
-      · apply aux02 H8 at H5
-        have H9 : p 0 - p1 0 < 0 := by nlinarith
-        rw [abs_of_neg H8, abs_of_neg H9] at sq_d'
+      · rw [div_pos_iff] at H6
+        obtain ⟨H9, H10⟩ | ⟨H9, H10⟩ := H6 <;> try linarith
+        rw [mul_neg_iff] at H9
+        obtain ⟨H11, H12⟩ | ⟨H11, H12⟩ := H9 <;> try grind
+        rw [abs_of_neg H10, abs_of_neg H11] at sq_d'
         have H10 : d' = (p 0 - p1 0) / (p2 0 - p1 0) * d := by grind
         rw [show p1 0 + d' / d * (p2 0 - p1 0) = p 0 by grind]
         rw [show p1 1 + d' / d * (p2 1 - p1 1) = p 1 by grind]
         ext i; fin_cases i <;> simp
       · field_simp at H5
-        rw [div_pos_iff_of_pos_right H8] at H5
-        have H9 : 0 < d ^ 2 := sq_pos_of_pos H1
-        rw [mul_pos_iff_of_pos_right H9] at H5
-        rw [abs_of_pos H8, abs_of_pos H5] at sq_d'
+        rw [div_pos_iff] at H6
+        obtain ⟨H9, H10⟩ | ⟨H9, H10⟩ := H6 <;> try linarith
+        rw [mul_pos_iff] at H9
+        obtain ⟨H11, H12⟩ | ⟨H11, H12⟩ := H9 <;> try grind
+        rw [abs_of_pos H10, abs_of_pos H11] at sq_d'
         have H10 : d' = (p 0 - p1 0) / (p2 0 - p1 0) * d := by grind
         rw [show p1 0 + d' / d * (p2 0 - p1 0) = p 0 by grind]
         rw [show p1 1 + d' / d * (p2 1 - p1 1) = p 1 by grind]
         ext i; fin_cases i <;> simp
-    · simp at H5
-      rw [H4] at H5
-      field_simp at H5
-      rw [H7] at H5
+    · simp at H6
+      rw [H5] at H6
+      field_simp at H6
+      rw [H7] at H6
       obtain H8 | H8 := lt_or_gt_of_ne H3
-      · apply aux03 H8 at H5
-        field_simp at H5
-        have H9 : 0 < d ^ 2 := sq_pos_of_pos H1
-        rw [mul_nonneg_iff_of_pos_right H9] at H5
-        rw [abs_of_neg H8, abs_of_nonneg H5] at sq_d'
+      · rw [div_nonpos_iff] at H6
+        obtain ⟨H9, H10⟩ | ⟨H9, H10⟩ := H6 <;> try linarith
+        rw [mul_nonneg_iff] at H9
+        obtain ⟨H11, H12⟩ | ⟨H11, H12⟩ := H9 <;> try grind
+        rw [abs_of_neg (by linarith), abs_of_nonneg H11] at sq_d'
         have H10 : d' = (p 0 - p1 0) / (p1 0 - p2 0) * d := by grind
         rw [show p1 0 + -d' / d * (p2 0 - p1 0) = p 0 by grind]
         rw [show p1 1 + -d' / d * (p2 1 - p1 1) = p 1 by grind]
         ext i; fin_cases i <;> simp
-      · apply aux04 H8 at H5
-        have H9 : p 0 - p1 0 ≤ 0 := by nlinarith [sq_pos_of_pos H1]
-        rw [abs_of_pos H8, abs_of_nonpos H9] at sq_d'
+      · rw [div_nonpos_iff] at H6
+        obtain ⟨H9, H10⟩ | ⟨H9, H10⟩ := H6 <;> try linarith
+        rw [mul_nonpos_iff] at H9
+        obtain ⟨H11, H12⟩ | ⟨H11, H12⟩ := H9 <;> try grind
+        rw [abs_of_pos (by linarith), abs_of_nonpos H11] at sq_d'
         have H10 : d' = (p 0 - p1 0) / (p1 0 - p2 0) * d := by grind
         rw [show p1 0 + -d' / d * (p2 0 - p1 0) = p 0 by grind]
         rw [show p1 1 + -d' / d * (p2 1 - p1 1) = p 1 by grind]
@@ -192,7 +177,7 @@ theorem coordinate_function_property_2 {p1 p2 : point} (H : p1 ≠ p2) (x : ℝ)
   simp
   set d := Real.sqrt ((p2 0 - p1 0) ^ 2 + (p2 1 - p1 1) ^ 2)
   have d_pos : 0 < d := by
-    unfold d; apply aux01 H
+    unfold d; apply distance_pos H
   have sq_d : d ^ 2 = (p2 0 - p1 0) ^ 2 + (p2 1 - p1 1) ^ 2 := by
     have H2 := aux00 (p2 0 - p1 0) (p2 1 - p1 1)
     exact Real.sq_sqrt H2
@@ -269,8 +254,7 @@ theorem distance_distinct_def {p1 p2 : point} (H : p1 ≠ p2) :
   · have H1 : 0 ≤ Real.sqrt ((p2 0 - p1 0) ^ 2 + (p2 1 - p1 1) ^ 2) := by
       apply Real.sqrt_nonneg
     rw [abs_of_nonneg H1]
-  · have H1 := aux01 H
-    have H2 : 0 < (p2 0 - p1 0) ^ 2 + (p2 1 - p1 1) ^ 2 := Real.sqrt_pos.mp H1
+  · have H2 : 0 < (p2 0 - p1 0) ^ 2 + (p2 1 - p1 1) ^ 2 := squared_distance_pos H
     linarith
 
 theorem distance_same_def (p : point) : distance p p = 0 := by
@@ -303,8 +287,8 @@ theorem get_point_of_direction_property (start : point) (a : Real.Angle) :
 
 lemma aux_x {p1 p2 : point} (H : p1 ≠ p2) :
     (p2 0 - p1 0) / Real.sqrt ((p2 0 - p1 0) ^ 2 + (p2 1 - p1 1) ^ 2) ∈ Set.Icc (- 1) 1 := by
-  have H0 := aux01 H
-  have H0' := aux01' H
+  have H0 := distance_pos H
+  have H0' := squared_distance_pos H
   set d2 := (p2 0 - p1 0) ^ 2 + (p2 1 - p1 1) ^ 2
   have H1 : 0 ≤ d2 - (p2 0 - p1 0) ^ 2 := by
     unfold d2
@@ -330,8 +314,8 @@ theorem direction_function_property_1 {start p : point} (H : start ≠ p) :
     get_point_of_direction start (get_direction H) ∈ halfline H := by
   unfold get_direction get_point_of_direction halfline at *
   simp
-  have Hd := aux01 H
-  have Hd' := aux01' H
+  have Hd := distance_pos H
+  have Hd' := squared_distance_pos H
   set d := Real.sqrt ((p 0 - start 0) ^ 2 + (p 1 - start 1) ^ 2)
   split_ifs <;> rename_i H0 H1 <;> simp at *
   · rw [Real.cos_arccos, Real.sin_arccos]
@@ -464,9 +448,18 @@ theorem angle_def {p1 start p2 : point} (H1 : start ≠ p1) (H2 : start ≠ p2) 
     angle H1 H2 = if delta.toReal ≤ Real.pi then delta else - delta := by
   unfold angle get_direction distance
   simp; split_ifs <;> rename_i H3 H4 H5 H6 <;> simp at *
-  · rw [← Real.Angle.coe_sub]
+  · rw [← Real.Angle.coe_sub] at H6 ⊢
     congr
-    field_simp
+    have H7 : (Real.Angle.coe (Real.arccos ((p2 0 - start 0) /
+               √((p2 0 - start 0) ^ 2 + (p2 1 - start 1) ^ 2)) -
+        Real.arccos ((p1 0 - start 0) / √((p1 0 - start 0) ^ 2 + (p1 1 - start 1) ^ 2)))).toReal =
+        Real.arccos ((p2 0 - start 0) / √((p2 0 - start 0) ^ 2 + (p2 1 - start 1) ^ 2)) -
+        Real.arccos ((p1 0 - start 0) / √((p1 0 - start 0) ^ 2 + (p1 1 - start 1) ^ 2)) := by
+      rw [Real.Angle.toReal_coe_eq_self_iff]
+      simp; constructor
+      ·
+        sorry
+      · sorry
 
     sorry
   · sorry
