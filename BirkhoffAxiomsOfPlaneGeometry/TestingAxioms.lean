@@ -410,73 +410,435 @@ noncomputable def angle {p1 start p2 : point} (_ : start ≠ p1) (_ : start ≠ 
   let dot_product := (p1 0 - start 0) * (p2 0 - start 0) + (p1 1 - start 1) * (p2 1 - start 1)
   Real.arccos (dot_product / d1 / d2)
 
-/- lemma aux05 (x1 y1 x2 y2 : ℝ) (H1 : x1 ^ 2 + y1 ^ 2 = 1) (H2 : x2 ^ 2 + y2 ^ 2 = 1) :
-    Real.arccos (x1 * x2 + y1 * y2) = Real.arccos x1 - Real.arccos x2 := by
-  have H : x1 = Real.cos (Real.arccos x1) := by
+lemma aux01 {x y : ℝ} (H : x ^ 2 + y ^ 2 = 1) (H0 : 0 ≤ y) : y = Real.sin (Real.arccos x) := by
+  have H1 : y ^ 2 = 1 - Real.cos (Real.arccos x) ^ 2 := by
     rw [Real.cos_arccos (by nlinarith) (by nlinarith)]
-  have H3 : y1 ^ 2 = 1 - Real.cos (Real.arccos x1) ^ 2 := by grind
-  have H4 : y1 ^ 2 = Real.sin (Real.arccos x1) ^ 2 := by
-    rw [← Real.sin_sq] at H3; exact H3
-  rw [sq_eq_sq_iff_abs_eq_abs, abs_eq_abs] at H4
-  have H5 : x2 = Real.cos (Real.arccos x2) := by
-    rw [Real.cos_arccos (by nlinarith) (by nlinarith)]
-  have H6 : y2 ^ 2 = 1 - Real.cos (Real.arccos x2) ^ 2 := by grind
-  have H7 : y2 ^ 2 = Real.sin (Real.arccos x2) ^ 2 := by
-    rw [← Real.sin_sq] at H6; exact H6
-  rw [sq_eq_sq_iff_abs_eq_abs, abs_eq_abs] at H7
-  obtain H4 | H4 := H4 <;> obtain H7 | H7 := H7
-  · rw [H, H5, H4, H7]
-    rw [← Real.cos_sub]
-    rw [Real.arccos_cos (Real.arccos_nonneg x1) (Real.arccos_le_pi x1)]
-    rw [Real.arccos_cos (Real.arccos_nonneg x2) (Real.arccos_le_pi x2)]
-    obtain H8 | H8 := lt_or_ge (Real.arccos x1) (Real.arccos x2)
-    · simp at H8
-      sorry
-    · sorry
-  · sorry
-  · sorry
-  · sorry
+    exact (sub_eq_of_eq_add' H.symm).symm
+  rw [← Real.sin_sq] at H1
+  have H2 : 0 ≤ Real.sin (Real.arccos x) := Real.sin_nonneg_of_mem_Icc
+    ⟨Real.arccos_nonneg x, Real.arccos_le_pi x⟩
+  rw [sq_eq_sq_iff_abs_eq_abs, abs_of_nonneg H0, abs_of_nonneg H2] at H1
+  exact H1
 
- -/
+lemma aux02 {x y : ℝ} (H : x ^ 2 + y ^ 2 = 1) (H0 : y ≤ 0) : y = - Real.sin (Real.arccos x) := by
+  have H1 : y ^ 2 = 1 - Real.cos (Real.arccos x) ^ 2 := by
+    rw [Real.cos_arccos (by nlinarith) (by nlinarith)]
+    exact (sub_eq_of_eq_add' H.symm).symm
+  rw [← Real.sin_sq] at H1
+  have H2 : 0 ≤ Real.sin (Real.arccos x) := Real.sin_nonneg_of_mem_Icc
+    ⟨Real.arccos_nonneg x, Real.arccos_le_pi x⟩
+  rw [sq_eq_sq_iff_abs_eq_abs, abs_of_nonpos H0, abs_of_nonneg H2] at H1
+  rw [<- H1]; simp
+
+
+lemma angle_def_aux01 {x : ℝ} (H : x ∈ Set.Icc (-Real.pi) Real.pi)
+    (H0 : 0 ≤ (Real.Angle.coe x).toReal) :
+    x = - Real.pi ∨ x ∈ Set.Icc 0 Real.pi := by
+  have H1 : x = - Real.pi ∨ x ∈ Set.Ioc (- Real.pi) Real.pi := by grind
+  obtain H1 | H1 := H1
+  · left; exact H1
+  · right
+    contrapose! H0
+    simp at *
+    obtain ⟨H2, H3⟩ := H1
+    apply eq_or_lt_of_le at H3
+    obtain H3 | H3 := H3
+    · rw [H3] at H0
+      linarith [H0 Real.pi_nonneg]
+    · obtain H4 | H4 := lt_or_ge x 0
+      · rw [Real.Angle.toReal_coe,
+           (toIocMod_eq_self Real.two_pi_pos).mpr ⟨by linarith, by linarith⟩]
+        exact H4
+      · linarith [H0 H4]
+
+lemma angle_def_aux02 {x : ℝ} (H : x ∈ Set.Icc (-Real.pi) Real.pi)
+    (H0 : (Real.Angle.coe x).toReal < 0) :
+    x ∈ Set.Ioo (-Real.pi) 0 := by
+  contrapose! H0
+  simp at *
+  obtain ⟨H1, H2⟩ := H
+  apply eq_or_lt_of_le at H1
+  obtain H1 | H1 := H1
+  · rw [← H1]; simp; linarith [Real.pi_pos]
+  · have H3 := H0 H1
+    rw [Real.Angle.toReal_coe,
+        (toIocMod_eq_self Real.two_pi_pos).mpr ⟨H1, by linarith⟩]
+    exact H3
+
+lemma angle_def_aux03 {x : ℝ} (H : x ∈ Set.Icc 0 (2 * Real.pi))
+    (H0 : 0 ≤ (Real.Angle.coe x).toReal) :
+    x = 2 * Real.pi ∨ x ∈ Set.Icc 0 Real.pi := by
+  contrapose! H0
+  simp at *
+  obtain ⟨H1, H2⟩ := H
+  obtain ⟨H3, H4⟩ := H0
+  have H5 := H4 H1
+  have H6 : x < 2 * Real.pi := by grind
+  rw [Real.Angle.toReal_coe, ← toIocMod_sub,
+      (toIocMod_eq_self Real.two_pi_pos).mpr ⟨by linarith, by linarith⟩]
+  linarith
+
+lemma angle_def_aux04 {x : ℝ} (H : x ∈ Set.Icc 0 (2 * Real.pi))
+    (H0 : (Real.Angle.coe x).toReal < 0) :
+    x ∈ Set.Ioo Real.pi (2 * Real.pi) := by
+  contrapose! H0
+  simp at *
+  obtain ⟨H1, H2⟩ := H
+  obtain H3 | H3 := lt_or_ge Real.pi x
+  · have H4 : x = 2 * Real.pi := by linarith [H0 H3]
+    rw [H4]; simp
+  · rw [Real.Angle.toReal_coe,
+      (toIocMod_eq_self Real.two_pi_pos).mpr ⟨by linarith [Real.pi_pos], by linarith⟩]
+    exact H1
+
+lemma angle_def_aux05 {x : ℝ} (H : x ∈ Set.Icc 0 (2 * Real.pi))
+    (H0 : 0 ≤ (Real.Angle.coe (-x)).toReal) :
+    x = 0 ∨ x ∈ Set.Icc Real.pi (2 * Real.pi) := by
+  contrapose! H0
+  simp at *
+  obtain ⟨H1, H2⟩ := H
+  obtain ⟨H3, H4⟩ := H0
+  obtain H5 | H5 := le_or_gt Real.pi x
+  · linarith [H4 H5]
+  · rw [← Real.Angle.coe_neg, Real.Angle.toReal_coe,
+          (toIocMod_eq_self Real.two_pi_pos).mpr ⟨by linarith [Real.pi_pos], by linarith⟩]
+    grind
+
+-- by https://leanprover.zulipchat.com/#narrow/dm/816344-Aaron-Liu
+lemma angle_def_aux06 {x : ℝ} (H : x ∈ Set.Icc 0 (2 * Real.pi))
+    (H0 : (Real.Angle.coe (-x)).toReal < 0) :
+    x ∈ Set.Ioo 0 Real.pi := by
+  contrapose! H0
+  obtain ⟨hl, hr⟩ := H
+  apply eq_or_lt_of_le at hl
+  obtain rfl | hx := hl
+  · simp
+  simp only [Set.mem_Ioo, not_and, not_lt, hx, true_imp_iff] at H0
+  rw [Real.Angle.toReal_coe, ← toIocMod_add_left, ← sub_eq_add_neg,
+    (toIocMod_eq_self Real.two_pi_pos).2 ⟨by linarith, by linarith⟩]
+  linarith
+
+lemma angle_def_aux07 {x : ℝ} (H : x ∈ Set.Icc (-Real.pi) Real.pi)
+    (H0 : 0 ≤ (Real.Angle.coe x).toReal) :
+    x = -Real.pi ∨ x ∈ Set.Icc 0 Real.pi := by
+  contrapose! H0
+  simp at *
+  obtain ⟨H1, H2⟩ := H
+  obtain ⟨H3, H4⟩ := H0
+  apply eq_or_lt_of_le at H2
+  obtain H5 | H5 := H2
+  · rw [H5] at H4
+    linarith [H4 Real.pi_nonneg]
+  · obtain H6 | H6 := le_or_gt 0 x
+    · linarith [H4 H6]
+    · rw [Real.Angle.toReal_coe,
+          (toIocMod_eq_self Real.two_pi_pos).mpr ⟨by grind, by linarith⟩]
+      exact H6
+
+lemma angle_def_aux08 {x : ℝ} (H : x ∈ Set.Icc (-Real.pi) Real.pi)
+    (H0 : (Real.Angle.coe x).toReal < 0) :
+    x ∈ Set.Ioo (-Real.pi) 0 := by
+  contrapose! H0
+  simp at *
+  obtain ⟨H1, H2⟩ := H
+  apply eq_or_lt_of_le at H1
+  obtain H1 | H1 := H1
+  · rw [← H1]; simp
+    exact Real.pi_nonneg
+  · have H3 := H0 H1
+    rw [Real.Angle.toReal_coe,
+        (toIocMod_eq_self Real.two_pi_pos).mpr ⟨H1, by linarith⟩]
+    exact H3
 
 set_option maxHeartbeats 1000000 in
 -- need more heartbeats
 theorem angle_def {p1 start p2 : point} (H1 : start ≠ p1) (H2 : start ≠ p2) :
     let d1 := get_direction H1
     let d2 := get_direction H2
-    let delta := if d1.toReal < d2.toReal then d2 - d1 else d1 - d2
-    angle H1 H2 = if delta.toReal ≤ Real.pi then delta else - delta := by
+    let delta := d2 - d1
+    angle H1 H2 = if 0 ≤ delta.sign then delta else - delta := by
   unfold angle get_direction distance
-  simp; split_ifs <;> rename_i H3 H4 H5 H6 <;> simp at *
-  · rw [← Real.Angle.coe_sub] at H6 ⊢
+  simp
+  set d1 := Real.sqrt ((p1 0 - start 0) ^ 2 + (p1 1 - start 1) ^ 2)
+  set d2 := Real.sqrt ((p2 0 - start 0) ^ 2 + (p2 1 - start 1) ^ 2)
+  set x1 := (p1 0 - start 0) / d1
+  set y1 := (p1 1 - start 1) / d1
+  set x2 := (p2 0 - start 0) / d2
+  set y2 := (p2 1 - start 1) / d2
+  have Hxy1 : x1 ^ 2 + y1 ^ 2 = 1 := by
+    unfold x1 y1 d1
+    have H5 := distance_pos H1
+    field_simp
+    rw [Real.sq_sqrt]
+    linarith [squared_distance_pos H1]
+  have Hxy2 : x2 ^ 2 + y2 ^ 2 = 1 := by
+    unfold x2 y2 d2
+    have H5 := distance_pos H2
+    field_simp
+    rw [Real.sq_sqrt]
+    linarith [squared_distance_pos H2]
+  have H9 : ((p1 0 - start 0) * (p2 0 - start 0) + (p1 1 - start 1) * (p2 1 - start 1))
+                / d1 / d2 = x1 * x2 + y1 * y2 := by
+        unfold x1 x2 y1 y2 d1 d2
+        field_simp
+  split_ifs <;> rename_i H5 H6 H7 <;> simp at *
+  · rw [← Real.Angle.coe_sub, ← Real.Angle.toReal_nonneg_iff_sign_nonneg] at H7
+    apply angle_def_aux01
+          ⟨by linarith [Real.pi_pos, Real.arccos_nonneg x2, Real.arccos_le_pi x1],
+           by linarith [Real.pi_pos, Real.arccos_nonneg x1, Real.arccos_le_pi x2]⟩ at H7
+    obtain H7 | ⟨H7, H8⟩ := H7
+    · have H8 : Real.arccos x2 = 0 := by linarith [Real.arccos_le_pi x1, Real.arccos_nonneg x2]
+      have H10 : Real.arccos x1 = Real.pi := by linarith [Real.arccos_le_pi x1]
+      simp at H8 H10
+      have H11 : x1 = -1 := by nlinarith
+      have H12 : x2 = 1 := by nlinarith
+      rw [H11] at Hxy1; simp at Hxy1
+      rw [H12] at Hxy2; simp at Hxy2
+      rw [H9, H11, H12, Hxy1, Hxy2]; simp
+    · rw [H9]
+      have H10 : 0 ≤ y1 := by
+        unfold y1 d1
+        have H11 := distance_pos H1
+        rw [div_nonneg_iff]
+        left; exact ⟨by linarith, by linarith⟩
+      have H11 : 0 ≤ y2 := by
+        unfold y2 d2
+        have H12 := distance_pos H2
+        rw [div_nonneg_iff]
+        left; exact ⟨by linarith, by linarith⟩
+      have H12 := aux01 Hxy1 H10
+      have H13 := aux01 Hxy2 H11
+      have H14 := @Real.cos_arccos x1 (by nlinarith) (by nlinarith)
+      have H15 := @Real.cos_arccos x2 (by nlinarith) (by nlinarith)
+      rw [H12, H13]
+      nth_rw 1 [← H14, ← H15]
+      rw [← Real.cos_sub, ← Real.cos_neg, Real.arccos_cos (by linarith) (by linarith)]; simp
+  · rw [← Real.Angle.coe_sub, ← Real.Angle.toReal_neg_iff_sign_neg] at H7
+    apply angle_def_aux02
+          ⟨by linarith [Real.pi_pos, Real.arccos_nonneg x2, Real.arccos_le_pi x1],
+           by linarith [Real.pi_pos, Real.arccos_nonneg x1, Real.arccos_le_pi x2]⟩ at H7
+    obtain ⟨H7, H8⟩ := H7
+    rw [H9]; congr
+    have H10 : 0 ≤ y1 := by
+      unfold y1 d1
+      have H11 := distance_pos H1
+      rw [div_nonneg_iff]
+      left; exact ⟨by linarith, by linarith⟩
+    have H11 : 0 ≤ y2 := by
+      unfold y2 d2
+      have H12 := distance_pos H2
+      rw [div_nonneg_iff]
+      left; exact ⟨by linarith, by linarith⟩
+    have H12 := aux01 Hxy1 H10
+    have H13 := aux01 Hxy2 H11
+    have H14 := @Real.cos_arccos x1 (by nlinarith) (by nlinarith)
+    have H15 := @Real.cos_arccos x2 (by nlinarith) (by nlinarith)
+    rw [H12, H13]
+    nth_rw 1 [← H14, ← H15]
+    rw [← Real.cos_sub, Real.arccos_cos (by linarith) (by linarith)]
+  · rw [← Real.Angle.coe_add, ← Real.Angle.toReal_nonneg_iff_sign_nonneg] at H7
+    apply angle_def_aux03
+          ⟨by linarith [Real.arccos_nonneg x1, Real.arccos_nonneg x2],
+           by linarith [Real.arccos_le_pi x1, Real.arccos_le_pi x2]⟩ at H7
+    obtain H7 | ⟨H7, H8⟩ := H7
+    · have H10 : Real.arccos x2 = Real.pi := by
+        linarith [Real.arccos_le_pi x1, Real.arccos_le_pi x2]
+      have H11 : Real.arccos x1 = Real.pi := by
+        linarith [Real.arccos_le_pi x1]
+      simp at H10 H11
+      have H12 : x1 = -1 := by nlinarith
+      have H13 : x2 = -1 := by nlinarith
+      rw [H12] at Hxy1; simp at Hxy1
+      rw [H13] at Hxy2; simp at Hxy2
+      rw [H9, H12, H13, Hxy1, Hxy2]; simp
+    · rw [H9]; congr
+      have H10 : y1 ≤ 0 := by
+        unfold y1 d1
+        have H11 := distance_pos H1
+        rw [div_nonpos_iff]
+        right; exact ⟨by linarith, by linarith⟩
+      have H11 : 0 ≤ y2 := by
+        unfold y2 d2
+        have H12 := distance_pos H2
+        rw [div_nonneg_iff]
+        left; exact ⟨by linarith, by linarith⟩
+      have H12 := aux02 Hxy1 H10
+      have H13 := aux01 Hxy2 H11
+      have H14 := @Real.cos_arccos x1 (by nlinarith) (by nlinarith)
+      have H15 := @Real.cos_arccos x2 (by nlinarith) (by nlinarith)
+      rw [H12, H13]
+      nth_rw 1 [← H14, ← H15]
+      rw [← Real.sin_neg, ← Real.cos_neg (Real.arccos x1), ← Real.cos_sub, ← Real.cos_neg]
+      rw [Real.arccos_cos (by linarith) (by linarith)]; simp
+  · rw [← Real.Angle.coe_add, ← Real.Angle.toReal_neg_iff_sign_neg] at H7
+    apply angle_def_aux04
+          ⟨by linarith [Real.arccos_nonneg x1, Real.arccos_nonneg x2],
+           by linarith [Real.arccos_le_pi x1, Real.arccos_le_pi x2]⟩ at H7
+    obtain ⟨H7, H8⟩ := H7
+    rw [← Real.Angle.coe_neg, ← Real.Angle.coe_sub, Real.Angle.angle_eq_iff_two_pi_dvd_sub]
+    use 1; simp
+    rw [H9]
+    have H10 : y1 ≤ 0 := by
+      unfold y1 d1
+      have H11 := distance_pos H1
+      rw [div_nonpos_iff]
+      right; exact ⟨by linarith, by linarith⟩
+    have H11 : 0 ≤ y2 := by
+      unfold y2 d2
+      have H12 := distance_pos H2
+      rw [div_nonneg_iff]
+      left; exact ⟨by linarith, by linarith⟩
+    have H12 := aux02 Hxy1 H10
+    have H13 := aux01 Hxy2 H11
+    have H14 := @Real.cos_arccos x1 (by nlinarith) (by nlinarith)
+    have H15 := @Real.cos_arccos x2 (by nlinarith) (by nlinarith)
+    rw [H12, H13]
+    nth_rw 1 [← H14, ← H15]
+    rw [← Real.sin_neg, ← Real.cos_neg (Real.arccos x1), ← Real.cos_sub]
+    rw [show -Real.arccos x1 - Real.arccos x2 = - (Real.arccos x1 + Real.arccos x2) by ring]
+    rw [← Real.cos_neg]; simp
+    rw [show Real.arccos x1 + Real.arccos x2 =
+             Real.arccos x1 + Real.arccos x2 - Real.pi + Real.pi by ring]
+    rw [Real.cos_add_pi, Real.arccos_neg]
+    rw [Real.arccos_cos (by linarith) (by linarith)]; ring
+  · rw [← Real.Angle.toReal_nonneg_iff_sign_nonneg] at H7
+    rw [← Real.Angle.coe_neg, ← Real.Angle.coe_sub] at H7
+    rw [show -Real.arccos x2 - Real.arccos x1 = - (Real.arccos x1 + Real.arccos x2) by ring] at H7
+    apply angle_def_aux05
+          ⟨by linarith [Real.arccos_nonneg x1, Real.arccos_nonneg x2],
+           by linarith [Real.arccos_le_pi x1, Real.arccos_le_pi x2]⟩  at H7
+    obtain H7 | ⟨H7, H8⟩ := H7
+    · have H10 : Real.arccos x1 = 0 := by linarith [Real.arccos_nonneg x1, Real.arccos_nonneg x2]
+      have H11 : Real.arccos x2 = 0 := by linarith [Real.arccos_nonneg x2]
+      simp at H10 H11
+      have H12 : x1 = 1 := by nlinarith
+      have H13 : x2 = 1 := by nlinarith
+      rw [H12] at Hxy1; simp at Hxy1
+      rw [H13] at Hxy2; simp at Hxy2
+      rw [H9, H12, H13, Hxy1, Hxy2]
+      simp
+    · rw [H9, ← Real.Angle.coe_neg, ← Real.Angle.coe_sub]
+      rw [Real.Angle.angle_eq_iff_two_pi_dvd_sub]
+      use 1; simp
+      have H12 : 0 ≤ y1 := by
+        unfold y1 d1
+        have H13 := distance_pos H1
+        rw [div_nonneg_iff]
+        left; exact ⟨by linarith, by linarith⟩
+      have H13 : y2 ≤ 0 := by
+        unfold y2 d2
+        have H14 := distance_pos H2
+        rw [div_nonpos_iff]
+        right; exact ⟨by linarith, by linarith⟩
+      have H14 := aux01 Hxy1 H12
+      have H15 := aux02 Hxy2 H13
+      have H16 := @Real.cos_arccos x1 (by nlinarith) (by nlinarith)
+      have H17 := @Real.cos_arccos x2 (by nlinarith) (by nlinarith)
+      rw [H14, H15]
+      nth_rw 1 [← H16, ← H17]
+      rw [← Real.sin_neg, ← Real.cos_neg (Real.arccos x2), ← Real.cos_sub]
+      simp
+      rw [show Real.arccos x1 + Real.arccos x2 =
+               Real.arccos x1 + Real.arccos x2 - Real.pi + Real.pi by ring]
+      rw [Real.cos_add_pi, Real.arccos_neg]
+      rw [Real.arccos_cos (by linarith) (by linarith)]; ring
+  · rw [← Real.Angle.toReal_neg_iff_sign_neg] at H7
+    rw [← Real.Angle.coe_neg, ← Real.Angle.coe_sub] at H7
+    rw [show -Real.arccos x2 - Real.arccos x1 = - (Real.arccos x1 + Real.arccos x2) by ring] at H7
+    have H10 := angle_def_aux06
+      ⟨by linarith [Real.arccos_nonneg x1, Real.arccos_nonneg x2],
+       by linarith [Real.arccos_le_pi x1, Real.arccos_le_pi x2]⟩ H7
+    simp only [Set.mem_Ioo] at H10
+    obtain ⟨H10, H11⟩ := H10
+    rw [H9]
+    have H12 : 0 ≤ y1 := by
+      unfold y1 d1
+      have H13 := distance_pos H1
+      rw [div_nonneg_iff]
+      left; exact ⟨by linarith, by linarith⟩
+    have H13 : y2 ≤ 0 := by
+      unfold y2 d2
+      have H14 := distance_pos H2
+      rw [div_nonpos_iff]
+      right; exact ⟨by linarith, by linarith⟩
+    have H14 := aux01 Hxy1 H12
+    have H15 := aux02 Hxy2 H13
+    have H16 := @Real.cos_arccos x1 (by nlinarith) (by nlinarith)
+    have H17 := @Real.cos_arccos x2 (by nlinarith) (by nlinarith)
+    rw [H14, H15]
+    nth_rw 1 [← H16, ← H17]
+    rw [← Real.sin_neg, ← Real.cos_neg (Real.arccos x2), ← Real.cos_sub]
+    rw [← Real.Angle.coe_add, Real.arccos_cos]
+    · congr; ring
+    · linarith [Real.arccos_nonneg x1, Real.arccos_nonneg x2]
+    · linarith
+  · rw [← Real.Angle.toReal_nonneg_iff_sign_nonneg] at H7
+    rw [← Real.Angle.coe_neg, ← Real.Angle.coe_add] at H7
+    apply angle_def_aux07
+      ⟨by linarith [Real.arccos_nonneg x1, Real.arccos_le_pi x2],
+       by linarith [Real.arccos_le_pi x1, Real.arccos_nonneg x2]⟩ at H7
+    obtain H7 | ⟨H7, H8⟩ := H7
+    · have H10 : Real.arccos x2 = Real.pi := by
+        linarith [Real.arccos_nonneg x1, Real.arccos_le_pi x2]
+      have H11 : Real.arccos x1 = 0 := by
+        linarith [Real.arccos_le_pi x1, Real.arccos_nonneg x2]
+      simp at H10 H11
+      have H12 : x1 = 1 := by nlinarith
+      have H13 : x2 = - 1 := by nlinarith
+      rw [H12] at Hxy1; simp at Hxy1
+      rw [H13] at Hxy2; simp at Hxy2
+      rw [H9, H12, H13, Hxy1, Hxy2]; simp
+    · rw [H9]
+      have H14 : y1 ≤ 0 := by
+        unfold y1 d1
+        have H15 := distance_pos H1
+        rw [div_nonpos_iff]
+        right; exact ⟨by linarith, by linarith⟩
+      have H15 : y2 ≤ 0 := by
+        unfold y2 d2
+        have H16 := distance_pos H2
+        rw [div_nonpos_iff]
+        right; exact ⟨by linarith, by linarith⟩
+      have H16 := aux02 Hxy1 H14
+      have H17 := aux02 Hxy2 H15
+      have H18 := @Real.cos_arccos x1 (by nlinarith) (by nlinarith)
+      have H19 := @Real.cos_arccos x2 (by nlinarith) (by nlinarith)
+      rw [H16, H17]
+      nth_rw 1 [← H18, ← H19]
+      rw [← Real.sin_neg, ← Real.sin_neg, ← Real.cos_neg (Real.arccos x1),
+          ← Real.cos_neg (Real.arccos x2), ← Real.cos_sub]
+      rw [show -Real.arccos x1 - -Real.arccos x2 = -(- Real.arccos x2 + Real.arccos x1) by ring]
+      rw [Real.cos_neg]
+      rw [← Real.Angle.coe_neg, ← Real.Angle.coe_add, Real.arccos_cos (by linarith) (by linarith)]
+  · rw [← Real.Angle.toReal_neg_iff_sign_neg] at H7
+    rw [← Real.Angle.coe_neg, ← Real.Angle.coe_add] at H7
+    apply angle_def_aux08
+      ⟨by linarith [Real.arccos_nonneg x1, Real.arccos_le_pi x2],
+       by linarith [Real.arccos_le_pi x1, Real.arccos_nonneg x2]⟩ at H7
+    obtain ⟨H7, H8⟩ := H7
+    rw [H9]
+    have H11 : y1 ≤ 0 := by
+      unfold y1 d1
+      have H12 := distance_pos H1
+      rw [div_nonpos_iff]
+      right; exact ⟨by linarith, by linarith⟩
+    have H12 : y2 ≤ 0 := by
+      unfold y2 d2
+      have H13 := distance_pos H2
+      rw [div_nonpos_iff]
+      right; exact ⟨by linarith, by linarith⟩
+    have H13 := aux02 Hxy1 H11
+    have H14 := aux02 Hxy2 H12
+    have H15 := @Real.cos_arccos x1 (by nlinarith) (by nlinarith)
+    have H16 := @Real.cos_arccos x2 (by nlinarith) (by nlinarith)
+    rw [H13, H14]
+    nth_rw 1 [← H15, ← H16]
+    rw [← Real.sin_neg, ← Real.sin_neg, ← Real.cos_neg (Real.arccos x1),
+        ← Real.cos_neg (Real.arccos x2), ← Real.cos_sub]
+    rw [← Real.Angle.coe_neg, ← Real.Angle.coe_add]
     congr
-    have H7 : (Real.Angle.coe (Real.arccos ((p2 0 - start 0) /
-               √((p2 0 - start 0) ^ 2 + (p2 1 - start 1) ^ 2)) -
-        Real.arccos ((p1 0 - start 0) / √((p1 0 - start 0) ^ 2 + (p1 1 - start 1) ^ 2)))).toReal =
-        Real.arccos ((p2 0 - start 0) / √((p2 0 - start 0) ^ 2 + (p2 1 - start 1) ^ 2)) -
-        Real.arccos ((p1 0 - start 0) / √((p1 0 - start 0) ^ 2 + (p1 1 - start 1) ^ 2)) := by
-      rw [Real.Angle.toReal_coe_eq_self_iff]
-      simp; constructor
-      ·
-        sorry
-      · sorry
-
-    sorry
-  · sorry
-  · sorry
-  · sorry
-  · sorry
-  · sorry
-  · sorry
-  · sorry
-  · sorry
-  · sorry
-  · sorry
-  · sorry
-  · sorry
-  · sorry
-  · sorry
-  · sorry
+    rw [Real.arccos_cos (by linarith) (by linarith)]
+    ring
 
 
 /-

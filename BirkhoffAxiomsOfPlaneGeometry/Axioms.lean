@@ -64,8 +64,8 @@ structure Birkhoff_geometry where
   angle_def : ∀ {p1 start p2 : point} (H1 : start ≠ p1) (H2 : start ≠ p2),
     let d1 := get_direction H1
     let d2 := get_direction H2
-    let delta := if d1.toReal < d2.toReal then d2 - d1 else d1 - d2
-    angle H1 H2 = if delta.toReal ≤ Real.pi then delta else - delta
+    let delta := d2 - d1
+    angle H1 H2 = if 0 ≤ delta.sign then delta else - delta
 
   continuity_axiom_1 : ∀ {start p1 p2 p : point}
     (H1 : start ≠ p1) (H2 : start ≠ p2) (H12 : p1 ≠ p2) (H : start ≠ p),
