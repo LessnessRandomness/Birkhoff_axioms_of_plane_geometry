@@ -841,10 +841,149 @@ theorem angle_def {p1 start p2 : point} (H1 : start ≠ p1) (H2 : start ≠ p2) 
     ring
 
 
+lemma aux00_for_continuity_axiom_1 {x : ℝ} (Hx : x ∈ Set.Ico 0 (2 * Real.pi)) :
+    0 ≤ Real.sin x → x ∈ Set.Icc 0 Real.pi := by
+  intro H
+  refine ⟨Hx.1, ?_⟩
+  contrapose! H
+  have H0 := @Real.sin_neg_of_neg_of_neg_pi_lt (x - 2 * Real.pi) (by grind) (by grind)
+  simp at H0
+  exact H0
+
+lemma aux01_for_continuity_axiom_1 {a b : ℝ} (Ha : a ∈ Set.Icc (-1) 1) (Hb : b ∈ Set.Icc (-1) 1) :
+    Real.sin (Real.arccos a + Real.arccos b) =
+    a * Real.sqrt (1 - b ^ 2) + b * Real.sqrt (1 - a ^ 2) := by
+  rw [Real.sin_add, Real.sin_arccos, Real.sin_arccos,
+     Real.cos_arccos Hb.1 Hb.2, Real.cos_arccos Ha.1 Ha.2]
+  ring
+
+lemma aux02_for_continuity_axiom_1 {a b : ℝ} (Ha : a ∈ Set.Icc (-1) 1) (Hb : b ∈ Set.Icc (-1) 1) :
+    Real.cos (Real.arccos a + Real.arccos b) =
+    a * b - Real.sqrt (1 - a ^ 2) * Real.sqrt (1 - b ^ 2) := by
+  rw [Real.cos_add, Real.sin_arccos, Real.sin_arccos,
+     Real.cos_arccos Hb.1 Hb.2, Real.cos_arccos Ha.1 Ha.2]
+
+lemma aux03_for_continuity_axiom_1 {x1 x2 : ℝ}
+    (Hx1 : x1 ∈ Set.Icc (-1) 1) (Hx2 : x2 ∈ Set.Icc (-1) 1) (Hx12 : x1 ≠ -1 ∨ x2 ≠ -1) :
+    Real.arccos x1 + Real.arccos x2 ∈ Set.Icc 0 Real.pi ↔
+    0 ≤ x1 * Real.sqrt (1 - x2 ^ 2) + x2 * Real.sqrt (1 - x1 ^ 2) := by
+  have H1 : Real.arccos x1 ∈ Set.Icc 0 Real.pi := ⟨Real.arccos_nonneg x1, Real.arccos_le_pi x1⟩
+  have H2 : Real.arccos x2 ∈ Set.Icc 0 Real.pi := ⟨Real.arccos_nonneg x2, Real.arccos_le_pi x2⟩
+  constructor <;> intro H
+  · have H3 : 0 ≤ Real.sin (Real.arccos x1 + Real.arccos x2) :=
+      Real.sin_nonneg_of_mem_Icc H
+    rw [aux01_for_continuity_axiom_1 Hx1 Hx2] at H3
+    exact H3
+  · have H3 := Real.cos_arccos Hx1.1 Hx1.2
+    have H4 := Real.cos_arccos Hx2.1 Hx2.2
+    rw [← H3, ← H4] at H
+    repeat rw [← Real.abs_sin_eq_sqrt_one_sub_cos_sq] at H
+    rw [abs_of_nonneg (Real.sin_nonneg_of_mem_Icc H1),
+        abs_of_nonneg (Real.sin_nonneg_of_mem_Icc H2)] at H
+    nth_rw 1 2 [mul_comm] at H
+    rw [← Real.sin_add, add_comm] at H
+    obtain H6 | H6 := eq_or_ne (Real.arccos x1 + Real.arccos x2) (2 * Real.pi)
+    · have H7 : Real.arccos x1 = Real.pi := by
+        linarith [Real.arccos_le_pi x1, Real.arccos_le_pi x2]
+      have H8 : Real.arccos x2 = Real.pi := by
+        linarith [Real.arccos_le_pi x2]
+      simp at H7 H8; grind
+    · exact aux00_for_continuity_axiom_1 (by grind) H
+
+lemma aux04_for_continuity_axiom_1 {x1 x2 : ℝ}
+    (Hx1 : x1 ∈ Set.Icc 0 Real.pi) (Hx2 : x2 ∈ Set.Icc 0 Real.pi) :
+    Real.cos x1 = Real.cos x2 ↔ x1 = x2 := by
+  constructor <;> intro H
+  · apply Real.injOn_cos at H
+    · exact H
+    · exact Hx1
+    · exact Hx2
+  · grind
+
+
+
+set_option maxHeartbeats 1000000 in
+--- need more hearbeats
+theorem continuity_axiom_1 {start p1 p2 p : point}
+    (H1 : start ≠ p1) (H2 : start ≠ p2) (H12 : p1 ≠ p2) (H : start ≠ p) :
+    p ∈ segment H12 → angle H1 H + angle H H2 = angle H1 H2 := by
+  intros Hp
+  unfold segment angle line at *; simp at *
+  unfold get_coordinate distance at *; simp at *
+  set d := Real.sqrt ((p 0 - start 0) ^ 2 + (p 1 - start 1) ^ 2)
+  set d1 := Real.sqrt ((p1 0 - start 0) ^ 2 + (p1 1 - start 1) ^ 2)
+  set d2 := Real.sqrt ((p2 0 - start 0) ^ 2 + (p2 1 - start 1) ^ 2)
+  set x := (p 0 - start 0) / d
+  set y := (p 1 - start 1) / d
+  set x1 := (p1 0 - start 0) / d1
+  set y1 := (p1 1 - start 1) / d1
+  set x2 := (p2 0 - start 0) / d2
+  set y2 := (p2 1 - start 1) / d2
 /-
-  continuity_axiom_1 : ∀ {start p1 p2 p : point}
-    (H1 : start ≠ p1) (H2 : start ≠ p2) (H12 : p1 ≠ p2) (H : start ≠ p),
-    p ∈ segment H12 → angle H1 H + angle H H2 = angle H1 H2
+  have Hxy : x ^ 2 + y ^ 2 = 1 := by
+    unfold x y d
+    have H5 := distance_pos H
+    field_simp
+    rw [Real.sq_sqrt]
+    linarith [squared_distance_pos H]
+  have Hxy1 : x1 ^ 2 + y1 ^ 2 = 1 := by
+    unfold x1 y1 d1
+    have H5 := distance_pos H1
+    field_simp
+    rw [Real.sq_sqrt]
+    linarith [squared_distance_pos H1]
+  have Hxy2 : x2 ^ 2 + y2 ^ 2 = 1 := by
+    unfold x2 y2 d2
+    have H5 := distance_pos H2
+    field_simp
+    rw [Real.sq_sqrt]
+    linarith [squared_distance_pos H2] -/
+  have H3 : ((p1 0 - start 0) * (p 0 - start 0) + (p1 1 - start 1) * (p 1 - start 1)) /d1 / d =
+            x * x1 + y * y1 := by
+    unfold x x1 y y1 d d1
+    field_simp
+  have H4 : ((p 0 - start 0) * (p2 0 - start 0) + (p 1 - start 1) * (p2 1 - start 1)) / d / d2 =
+            x * x2 + y * y2 := by
+    unfold x x2 y y2 d d2
+    field_simp
+  have H5 : ((p1 0 - start 0) * (p2 0 - start 0) + (p1 1 - start 1) * (p2 1 - start 1)) / d1 / d2 =
+            x1 * x2 + y1 * y2 := by
+    unfold x1 x2 y1 y2 d1 d2
+    field_simp
+  simp at *; split_ifs at * <;> rename_i H6 H7 <;> simp at Hp <;> split_ifs at * <;> rename_i H8
+  · rw [H3, H4, H5]
+    rw [← aux04_for_continuity_axiom_1]
+    · rw [Real.cos_arccos, aux02_for_continuity_axiom_1]
+      · field_simp
+        obtain ⟨Hp1, Hp2, Hp3⟩ := Hp
+        have H9 : (p2 0 - p1 0) * (p 1 - p1 1) / d = (p2 1 - p1 1) * (p 0 - p1 0) / d := by
+          have H10 : 0 < d := by unfold d; apply distance_pos H
+          field_simp
+          exact Hp2
+        have H10 := distance_pos H12
+        set d12 := Real.sqrt ((p1 0 - p2 0) ^ 2 + (p1 1 - p2 1) ^ 2)
+
+        sorry
+      · sorry
+      · sorry
+      · sorry
+      · sorry
+    · rw [aux03_for_continuity_axiom_1]
+      · sorry
+      · sorry
+      · sorry
+      · sorry
+    · sorry
+  · sorry
+  · sorry
+  · sorry
+  · sorry
+  · sorry
+  · sorry
+  · sorry
+
+/-
+
   continuity_axiom_2 : ∀ {start p1 p2 p : point}
     (H1 : start ≠ p1) (H2 : start ≠ p2) (H12 : p1 ≠ p2) (H : start ≠ p),
     angle H1 H + angle H H2 = angle H1 H2 →
