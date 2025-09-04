@@ -610,4 +610,187 @@ lemma aux11 {x y z : V} (Hx : x ≠ 0) (Hy : y ≠ 0) (Hz : z ≠ 0)
     linarith
   apply aux10 (kx := kx) (kz := kz) <;> try assumption
 
+lemma aux12 {x y z : V} (Hx : ‖x‖ = 1) (Hy : ‖y‖ = 1) (Hz : ‖z‖ = 1) :
+    angle x z ≠ 0 → angle x z ≠ Real.pi →
+    angle x y ≠ 0 → angle x y ≠ Real.pi →
+    angle y z ≠ 0 → angle y z ≠ Real.pi →
+    angle x z = angle x y + angle y z →
+    Real.sin (angle x z) • y = Real.sin (angle y z) • x + Real.sin (angle x y) • z := by
+  intros H H0 H1 H2 H3 H4 H5
+  have H6 : ⟪x, z⟫ = ⟪x, z⟫ := rfl
+  nth_rw 2 [angle_le_angle_add_angle_aux Hx Hy] at H6
+  nth_rw 2 [angle_le_angle_add_angle_aux Hz Hy] at H6
+  simp only [inner_add_left, inner_add_right, real_inner_smul_left, real_inner_smul_right] at H6
+  simp only [real_inner_comm y (normalize _),
+              real_inner_self_eq_norm_sq, Hy, angle_comm z y, inner_normalize_ortho] at H6
+  norm_num at H6
+  have H7 : ⟪x, z⟫ = Real.cos (angle x y + angle y z) := by
+    rw [← H5]
+    exact inner_eq_cos_angle Hx Hz
+  rw [H7] at H6
+  rw [Real.cos_add] at H6
+  ring_nf at H6
+  have T (a b : ℝ) : a - b = a + b * (-1) := by simp; rfl
+  rw [T] at H6
+  simp only [add_right_inj] at H6
+  have Hw : Real.sin (angle x y) * Real.sin (angle y z) ≠ 0 := by
+    intros Hw; simp at Hw
+    obtain Hw | Hw := Hw
+    · rw [sin_eq_zero_iff_angle_eq_zero_or_angle_eq_pi] at Hw
+      tauto
+    · rw [sin_eq_zero_iff_angle_eq_zero_or_angle_eq_pi] at Hw
+      tauto
+  have H8 : ⟪normalize (ortho y x), normalize (ortho y z)⟫ = - 1 := by
+    grind
+  have H9 : ortho y x ≠ 0 := by
+    apply aux05 Hy Hx
+    · rw [angle_comm]; assumption
+    · rw [angle_comm]; assumption
+  have H10 : ortho y z ≠ 0 := by
+    apply aux05 Hy Hz <;> assumption
+  have H11 : ‖normalize (ortho y x)‖ = 1 := by
+    exact norm_normalize_eq_one_iff.mpr H9
+  have H12 : ‖normalize (ortho y z)‖ = 1 := by
+    exact norm_normalize_eq_one_iff.mpr H10
+  rw [inner_eq_neg_one_iff_of_norm_one H11 H12] at H8
+  nth_rw 2 [angle_le_angle_add_angle_aux Hx Hy]
+  nth_rw 3 [angle_le_angle_add_angle_aux Hz Hy]
+  rw [H8]
+  rw [smul_add, smul_add]
+  simp
+  match_scalars
+  · norm_num
+    rw [H5, Real.sin_add]
+    rw [angle_comm z y]
+    ring
+  · rw [angle_comm z y]
+    ring
+
+lemma aux13 {x y z : V} (Hx : ‖x‖ = 1) (Hy : ‖y‖ = 1) (Hz : ‖z‖ = 1) :
+    angle x z ≠ Real.pi → angle x z = angle x y + angle y z →
+    Real.sin (angle x z) • y = Real.sin (angle y z) • x + Real.sin (angle x y) • z := by
+  intros H H0
+  obtain H1 | H1 := eq_or_ne (angle x z) 0
+  · rw [H1]; simp
+    rw [H1] at H
+    have H2 : angle x y = 0 := by linarith [angle_nonneg x y, angle_nonneg y z]
+    have H3 : angle y z = 0 := by linarith [angle_nonneg y z]
+    rw [H2, H3]; simp
+  obtain H2 | H2 := eq_or_ne (angle x y) Real.pi
+  · rw [H2] at H0 ⊢
+    have H3 : angle x z = Real.pi := by
+      linarith [angle_nonneg y z, angle_le_pi x z]
+    tauto
+  obtain H3 | H3 := eq_or_ne (angle y z) Real.pi
+  · rw [H3] at H0 ⊢
+    have H4 : angle x z = Real.pi := by
+      linarith [angle_nonneg x y, angle_le_pi x z]
+    tauto
+  obtain H4 | H4 := eq_or_ne (angle x y) 0
+  · rw [H4] at H0 ⊢
+    simp at H0 ⊢
+    rw [H0]
+    rw [angle_eq_zero_iff] at H4
+    obtain ⟨H4, ⟨r, ⟨H5, H6⟩⟩⟩ := H4
+    rw [H6] at Hy
+    rw [norm_smul] at Hy
+    simp at Hy; rw [Hx] at Hy
+    simp at Hy
+    have H7 : r = 1 := by
+      have H7 := abs_cases r; grind
+    rw [H7] at H6; simp at H6
+    rw [H6]
+  obtain H5 | H5 := eq_or_ne (angle y z) 0
+  · rw [H5] at H0 ⊢
+    simp at H0 ⊢
+    rw [H0]
+    rw [angle_eq_zero_iff] at H5
+    obtain ⟨H5, ⟨r, ⟨H6, H7⟩⟩⟩ := H5
+    rw [H7] at Hz
+    rw [norm_smul] at Hz
+    simp at Hz
+    rw [Hy] at Hz
+    simp at Hz
+    have H8 : r = 1 := by
+      have H7 := abs_cases r; grind
+    rw [H8] at H7; simp at H7
+    rw [H7]
+  apply aux12 <;> assumption
+
+theorem thm {x y z : V} (Hx : x ≠ 0) (Hy : y ≠ 0) (Hz : z ≠ 0) (Hxz : angle x z ≠ Real.pi) :
+    (∃ (kx kz : ℝ), 0 ≤ kx ∧ 0 ≤ kz ∧ y = kx • x + kz • z) ↔
+    angle x z = angle x y + angle y z := by
+  constructor <;> intro H
+  · obtain ⟨kx, ⟨kz, ⟨Hkx, ⟨Hkz, H⟩⟩⟩⟩ := H
+    have H0 : kx = 0 ∨ 0 < kx := by exact Or.symm (LE.le.lt_or_eq' Hkx)
+    have H1 : kz = 0 ∨ 0 < kz := by exact Or.symm (LE.le.lt_or_eq' Hkz)
+    obtain H0 | H0 := H0 <;> obtain H1 | H1 := H1
+    · subst kx kz; simp at H; tauto
+    · subst kx; simp at H
+      rw [H, angle_smul_right_of_pos x z H1, angle_smul_left_of_pos z z H1]
+      simp
+      exact angle_self Hz
+    · subst kz; simp at H
+      rw [H, angle_smul_right_of_pos x x H0, angle_smul_left_of_pos x z H0]
+      simp
+      exact angle_self Hx
+    · exact aux11 Hx Hy Hz kx kz H0 H1 Hxz H
+  · obtain H0 | H0 := eq_or_ne (angle x z) 0
+    · have H1 : angle x y = 0 := by linarith [angle_nonneg x y, angle_nonneg y z]
+      rw [angle_eq_zero_iff] at H1
+      obtain ⟨_, ⟨r1, ⟨H3, H4⟩⟩⟩ := H1
+      use r1, 0; simp
+      constructor
+      · linarith
+      · exact H4
+    · have H1 : Real.sin (angle x z) ≠ 0 := by
+        intros H1
+        rw [sin_eq_zero_iff_angle_eq_zero_or_angle_eq_pi] at H1
+        tauto
+      have Hx' : ‖x‖ ≠ 0 := norm_ne_zero_iff.mpr Hx
+      have Hy' : ‖y‖ ≠ 0 := norm_ne_zero_iff.mpr Hy
+      have Hz' : ‖z‖ ≠ 0 := norm_ne_zero_iff.mpr Hz
+      have H3 : Real.sin (angle x z) / ‖y‖ ≠ 0 := div_ne_zero H1 Hy'
+      use (Real.sin (angle y z)) / Real.sin (angle x z) / ‖x‖ * ‖y‖,
+          (Real.sin (angle x y)) / Real.sin (angle x z) / ‖z‖ * ‖y‖
+      refine ⟨?_, ?_, ?_⟩
+      · field_simp
+        rw [div_nonneg_iff]; left
+        constructor
+        · rw [mul_nonneg_iff]; left
+          constructor
+          · exact sin_angle_nonneg y z
+          · exact norm_nonneg y
+        · rw [mul_nonneg_iff]; left
+          constructor
+          · exact sin_angle_nonneg x z
+          · exact norm_nonneg x
+      · rw [mul_nonneg_iff]; left
+        constructor
+        · rw [div_nonneg_iff]; left
+          constructor
+          · rw [div_nonneg_iff]; left
+            constructor
+            · exact sin_angle_nonneg x y
+            · exact sin_angle_nonneg x z
+          · exact norm_nonneg z
+        · exact norm_nonneg y
+      · rw [aux03 _ _ (Real.sin (angle x z) / ‖y‖) H3]
+        rw [smul_add, ← smul_assoc, ← smul_assoc, smul_eq_mul, smul_eq_mul]
+        field_simp
+        have H4 : ‖normalize y‖ = 1 := norm_normalize_eq_one_iff.mpr Hy
+        have H5 : ‖normalize x‖ = 1 := norm_normalize_eq_one_iff.mpr Hx
+        have H6 : ‖normalize z‖ = 1 := norm_normalize_eq_one_iff.mpr Hz
+        have H7 := aux13 H5 H4 H6
+        rw [aux08 Hy Hz, aux08 Hx Hz, aux08 Hx Hy] at H7
+        have H8 := H7 Hxz H
+        unfold normalize at H8
+        rw [← smul_assoc, smul_eq_mul] at H8
+        have H9 : Real.sin (angle x z) * ‖y‖⁻¹ = Real.sin (angle x z) / ‖y‖ := by
+          field_simp
+        rw [H9] at H8
+        rw [H8]
+        match_scalars <;> field_simp
+
+
 end tinkering
