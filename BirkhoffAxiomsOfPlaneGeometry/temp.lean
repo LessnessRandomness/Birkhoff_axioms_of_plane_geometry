@@ -205,6 +205,28 @@ lemma angle_le_angle_add_angle {x y z : V} (Hx : ‖x‖ = 1) (Hy : ‖y‖ = 1)
     linarith [mul_nonneg H3 H2]
   rwa [Real.strictAntiOn_cos.le_iff_ge ⟨H0, H⟩ ⟨angle_nonneg x z, angle_le_pi x z⟩] at H4
 
+lemma angle_normalize_left {x y : V} (Hx : x ≠ 0) :
+    angle (normalize x) y = angle x y := by
+  unfold normalize
+  rw [angle_smul_left_of_pos]
+  simpa
+
+lemma angle_normalize_right {x y : V} (Hy : y ≠ 0) :
+    angle x (normalize y) = angle x y := by
+  rw [angle_comm, angle_normalize_left Hy, angle_comm]
+
+
+theorem inner_le_one_of_norm_one {x y : V} (hx : ‖x‖ = 1) (hy : ‖y‖ = 1) : ⟪x, y⟫ ≤ 1 := by
+  have H := real_inner_le_norm x y
+  simp_all
+
+theorem neg_one_le_inner_of_norm_one {x y : V} (hx : ‖x‖ = 1) (hy : ‖y‖ = 1) : -1 ≤ ⟪x, y⟫ := by
+  have H := neg_le_of_abs_le (abs_real_inner_le_norm x y)
+  simp_all
+
+
+---- this is where https://github.com/leanprover-community/mathlib4/pull/26129 ends
+
 
 lemma aux00 {a b : V} (Ha : ‖a‖ = 1) (Hb : ‖b‖ = 1) (k : ℝ) :
     a = k • b → (k = 1 ∨ k = - 1) := by
@@ -215,408 +237,319 @@ lemma aux00 {a b : V} (Ha : ‖a‖ = 1) (Hb : ‖b‖ = 1) (k : ℝ) :
   have H0 := abs_cases k
   grind
 
-lemma aux03 (x y : V) (k : ℝ) (Hk : k ≠ 0) :
-    x = y ↔ k • x = k • y := by
-  constructor <;> intro H7
-  · rw [H7]
-  · have H8 : k⁻¹ • (k • x) = k⁻¹ • (k • y) := by
-      rw [H7]
-    rw [← smul_assoc, ← smul_assoc] at H8
-    rw [smul_eq_mul] at H8
-    field_simp at H8
-    simp at H8
-    exact H8
-
 lemma aux01 {a b : V} (Ha : a ≠ 0) (Hb : b ≠ 0) :
-    normalize a = - normalize b ↔
-    ∃ (k : ℝ), 0 < k ∧ a = - k • b := by
+    normalize a = normalize b ↔
+    ∃ (k : ℝ), 0 < k ∧ a = k • b := by
   constructor <;> intro H
   · unfold normalize at H
     have H0 : ‖a‖ ≠ 0 := norm_ne_zero_iff.mpr Ha
-    rw [aux03 _ _ _ H0] at H
-    rw [← smul_assoc, smul_eq_mul] at H
-    field_simp at H; simp at H
     have H1 : ‖b‖ ≠ 0 := norm_ne_zero_iff.mpr Hb
-    rw [← smul_assoc, smul_eq_mul] at H
+    rw [← smul_right_inj H0, ← smul_assoc, smul_eq_mul] at H
+    field_simp at H; simp [← smul_assoc, smul_eq_mul] at H
     use (‖a‖ * ‖b‖⁻¹)
-    constructor
-    · have H2 : 0 < ‖a‖ := norm_pos_iff.mpr Ha
-      have H3 : 0 < ‖b‖ := norm_pos_iff.mpr Hb
-      have H4 : 0 < ‖b‖⁻¹ := inv_pos.mpr H3
-      exact mul_pos H2 H4
-    · nth_rw 1 [H]
-      module
+    refine ⟨?_, H⟩
+    have H2 : 0 < ‖a‖ := norm_pos_iff.mpr Ha
+    have H3 : 0 < ‖b‖ := norm_pos_iff.mpr Hb
+    have H4 : 0 < ‖b‖⁻¹ := inv_pos.mpr H3
+    exact mul_pos H2 H4
   · obtain ⟨k, ⟨Hk1, Hk2⟩⟩ := H
-    rw [Hk2]
-    simp
-    rw [normalize_neg]; congr 1
-    exact normalize_smul_of_pos Hk1 b
+    rw [Hk2, normalize_smul_of_pos Hk1]
 
-
-lemma aux04 (x z : V) (kx kz : ℝ) (H : kx • x + kz • z ≠ 0) (H0 : kx ≠ 0) :
-    x - (‖kx • x + kz • z‖⁻¹ * ⟪x, kx • x + kz • z⟫) • ‖kx • x + kz • z‖⁻¹ • (kx • x + kz • z) =
-    -(kz / kx) • (z - (‖kx • x + kz • z‖⁻¹ * ⟪z, kx • x + kz • z⟫) •
-    ‖kx • x + kz • z‖⁻¹ • (kx • x + kz • z)) := by
-  match_scalars <;>
-  · field_simp
-    rw [← real_inner_self_eq_norm_sq]
-    simp [inner_add_left, inner_smul_left]
-    ring
+lemma aux01_neg {a b : V} (Ha : a ≠ 0) (Hb : b ≠ 0) :
+    normalize a = - normalize b ↔
+    ∃ (k : ℝ), k < 0 ∧ a = k • b := by
+  rw [← normalize_neg, aux01 Ha (neg_ne_zero.mpr Hb)]
+  constructor <;> intro H
+  · obtain ⟨k, ⟨Hk1, Hk2⟩⟩ := H
+    use (-k); subst Hk2; simp [Hk1]
+  · obtain ⟨k, ⟨Hk1, Hk2⟩⟩ := H
+    use (-k); subst Hk2; simp [Hk1]
 
 lemma aux05 {x y : V} (Hx : ‖x‖ = 1) (Hy : ‖y‖ = 1) (H : angle x y ≠ 0) (H0 : angle x y ≠ Real.pi) :
     ortho x y ≠ 0 := by
-  intro H1
-  unfold ortho at H1
+  intro H1; unfold ortho at H1
   rw [sub_eq_zero] at H1
-  have Hy' := Hy
-  rw [H1, norm_smul, Hx] at Hy
-  simp at Hy
-  obtain ⟨H2, H3⟩ | ⟨H2, H3⟩ := abs_cases ⟪y, x⟫
-  · rw [Hy, inner_eq_cos_angle Hy' Hx, angle_comm] at H2
-    symm at H2
-    rw [cos_eq_one_iff_angle_eq_zero] at H2
-    tauto
-  · rw [Hy, inner_eq_cos_angle Hy' Hx, angle_comm] at H2
-    have H4 : Real.cos (angle x y) = -1 := by rw [H2]; simp
-    rw [cos_eq_neg_one_iff_angle_eq_pi] at H4
-    tauto
+  apply (aux00 Hy Hx) at H1
+  obtain H1 | H1 := H1
+  · rw [inner_eq_one_iff_of_norm_one Hy Hx] at H1
+    rw [H1] at H
+    apply H; rw [angle_self]
+    intros H2; rw [H2] at Hx; simp at Hx
+  · rw [inner_eq_neg_one_iff_of_norm_one Hy Hx] at H1
+    rw [H1] at H0
+    apply H0; rw [angle_neg_right, angle_self] <;> simp
+    intros H2; rw [H2] at Hx; simp at Hx
 
+lemma aux08_1 {x y : V} (Hx : ‖x‖ = 1) (Hy : ‖y‖ = 1) (H : angle x y = 0) : x = y := by
+  rw [angle_eq_zero_iff, ← aux01] at H
+  · simp_all [normalize_eq_self_of_norm_one]
+  · intro H0; simp [H0] at Hy
+  · tauto
 
+lemma aux08_2 {x y : V} (Hx : ‖x‖ = 1) (Hy : ‖y‖ = 1) (H : angle x y = Real.pi) : x = -y := by
+  rw [show -y = - 1 • y by module]
+  rw [angle_eq_pi_iff, ← aux01_neg] at H
+  · simp_all [normalize_eq_self_of_norm_one]
+  · intro H0; simp [H0] at Hy
+  · tauto
 
-set_option maxHeartbeats 1000000 in
--- asdf qwerty
-lemma aux06 {x y z : V} (Hx : ‖x‖ = 1) (Hy : ‖y‖ = 1) (Hz : ‖z‖ = 1)
-    (kx kz : ℝ) (Hkx : 0 < kx) (Hkz : 0 < kz) :
-    angle x y ≠ 0 → angle x y ≠ Real.pi →
-    angle y z ≠ 0 → angle y z ≠ Real.pi →
-    y = normalize (kx • x + kz • z) →
-    angle x y + angle y z ≤ Real.pi →
+lemma aux09 {x z : V} (Hx : ‖x‖ = 1) (Hz : ‖z‖ = 1) {k : ℝ} (Hk : 0 ≤ k) :
+    let y := normalize (x + k • z)
+    angle x y + angle y z ≤ Real.pi := by
+  intros y
+  obtain H | H := eq_or_ne (angle x z) Real.pi
+  · have H0 : x = -z := aux08_2 Hx Hz H
+    subst H0; clear Hx H
+    have Hz' : z ≠ 0 := by
+      intro H; rw [H] at Hz; simp at Hz
+    have H1 : -z + k • z = (k - 1) • z := by module
+    obtain H2 | H2 | H2 := lt_trichotomy k 1
+    · have H3 : y = -z := by
+        unfold y
+        rw [H1, normalize_smul_of_neg (by linarith), normalize_eq_self_of_norm_one Hz]
+      rw [H3, angle_neg_left, angle_comm]; ring_nf; apply le_refl
+    · have H3 : y = 0 := by
+        unfold y
+        rw [H1, H2]; simp
+      rw [H3]; simp
+    · have H3 : y = z := by
+        unfold y
+        rw [H1, normalize_smul_of_pos (by linarith), normalize_eq_self_of_norm_one Hz]
+      rw [H3, angle_neg_left]; ring_nf; apply le_refl
+  have Hz' : z ≠ 0 := by
+    intro H1; rw [H1] at Hz; simp at Hz
+  obtain H0 | H0 := eq_or_ne (angle x z) 0
+  · apply aux08_1 Hx Hz at H0
+    have H1 : y = z := by
+      unfold y
+      rw [H0, show z + k • z = (1 + k) • z by module, normalize_smul_of_pos (by linarith)]
+      rw [normalize_eq_self_of_norm_one Hz]
+    rw [H0, H1, angle_self Hz']; simp [Real.pi_nonneg]
+  have Hy' : x + k • z ≠ 0 := by
+    intros H2; have H3 := H2; unfold y at *
+    rw [add_eq_zero_iff_eq_neg, ← neg_smul] at H2
+    apply aux00 Hx Hz at H2
+    obtain H2 | H2 := H2
+    · linarith
+    · simp at H2
+      rw [H2, add_eq_zero_iff_eq_neg] at H3; simp at H3
+      rw [H3, angle_neg_left, angle_self Hz'] at H; simp at H
+  have Hy : ‖y‖ = 1 := norm_normalize_eq_one_iff.mpr Hy'
+  obtain H1 | H1 := eq_or_ne (angle x y + angle y z) (2 * Real.pi)
+  · have H2 : angle x y = Real.pi := by linarith [angle_le_pi x y, angle_le_pi y z]
+    have H3 : angle y z = Real.pi := by linarith [angle_le_pi y z]
+    apply aux08_2 Hx Hy at H2
+    apply aux08_2 Hy Hz at H3
+    rw [H2, H3] at H0
+    simp [angle_self Hz'] at H0
+  have H2 : 0 ≤ Real.sin (angle x y + angle y z) := by
+    unfold angle; rw [Hx, Hy, Hz]; simp
+    rw [Real.sin_add, Real.sin_arccos, Real.sin_arccos,
+        Real.cos_arccos (neg_one_le_inner Hy Hz) (inner_le_one_of_norm_one Hy Hz),
+        Real.cos_arccos (neg_one_le_inner Hx Hy) (inner_le_one_of_norm_one Hx Hy)]
+    unfold y normalize
+    set w := x + k • z
+    have H1 : 1 - ⟪x, ‖w‖⁻¹ • w⟫ ^ 2 = (‖w‖ ^ 2 - ⟪x, w⟫ ^ 2) / (‖w‖ ^ 2) := by
+      rw [real_inner_smul_right]; field_simp
+    have H2 : 1 - ⟪‖w‖⁻¹ • w, z⟫ ^ 2 = (‖w‖ ^ 2 - ⟪w, z⟫ ^ 2) / (‖w‖ ^ 2) := by
+      rw [real_inner_smul_left]; field_simp
+    rw [H1, H2, Real.sqrt_div' _ (sq_nonneg ‖w‖), Real.sqrt_div' _ (sq_nonneg ‖w‖),
+        Real.sqrt_sq (norm_nonneg w)]
+    rw [real_inner_smul_left, real_inner_smul_right]
+    field_simp
+    rw [div_nonneg_iff]; left; refine ⟨?_, sq_nonneg ‖w‖⟩
+    set p := ⟪x, z⟫
+    have H3: ‖w‖ ^ 2 = 1 + k ^ 2 + 2 * k * p := by
+      unfold w; rw [← real_inner_self_eq_norm_sq]
+      rw [inner_add_right, inner_add_left, inner_add_left]
+      rw [real_inner_smul_left, real_inner_smul_right, real_inner_smul_left,
+          real_inner_smul_right]
+      rw [inner_self_eq_one Hx, inner_self_eq_one Hz, real_inner_comm x z]
+      ring
+    have H4 : ⟪x, w⟫ = 1 + k * p := by
+      unfold w
+      rw [inner_add_right, real_inner_smul_right, inner_self_eq_one Hx]
+    have H5 : ⟪w, z⟫ = k + p := by
+      unfold w p
+      rw [inner_add_left, real_inner_smul_left, inner_self_eq_one Hz]
+      ring
+    rw [H3, H4, H5]
+    have H6 : 1 + k ^ 2 + 2 * k * p - (1 + k * p) ^ 2 = k ^ 2 * (1 - p ^ 2) := by
+      ring
+    have H7 : (1 + k ^ 2 + 2 * k * p - (k + p) ^ 2) = 1 - p ^ 2 := by
+      ring
+    rw [H6, H7, Real.sqrt_mul (sq_nonneg k), Real.sqrt_sq Hk]
+    rw [show k * √(1 - p ^ 2) * (k + p) + (1 + k * p) * √(1 - p ^ 2) =
+              √(1 - p ^ 2) * (1 + 2 * k * p + k ^ 2) by ring]
+    rw [mul_nonneg_iff]; left; refine ⟨Real.sqrt_nonneg (1 - p ^ 2), ?_⟩
+    rw [show 1 + 2 * k * p + k ^ 2 = (1 - k) ^ 2 + ((1 + p) * (2 * k)) by ring]
+    have H9 : -1 ≤ p := by
+      unfold p; exact neg_one_le_inner_of_norm_one Hx Hz
+    nlinarith
+  contrapose! H2
+  rw [← Real.sin_sub_two_pi]
+  have H3 := angle_le_pi x y
+  have H4 := angle_le_pi y z
+  apply Real.sin_neg_of_neg_of_neg_pi_lt <;> grind
+
+lemma aux06 {x z : V} (Hx : ‖x‖ = 1) (Hz : ‖z‖ = 1) {k : ℝ} (Hk : 0 ≤ k) :
+    let y := normalize (x + k • z)
     angle x z = angle x y + angle y z := by
-  intros h1 h2 h3 h4 H H'
-  have H0 : 0 ≤ angle x y + angle y z :=
-    add_nonneg (angle_nonneg x y) (angle_nonneg y z)
-  have H1 : ⟪x, z⟫ = ⟪x, z⟫ := rfl
-  nth_rw 2 [angle_le_angle_add_angle_aux Hx Hy] at H1
-  nth_rw 2 [angle_le_angle_add_angle_aux Hz Hy] at H1
-  simp only [inner_add_left, inner_add_right, real_inner_smul_left, real_inner_smul_right] at H1
-  simp only [real_inner_comm y (normalize _), real_inner_self_eq_norm_sq, Hy,
-    angle_comm z y, inner_normalize_ortho] at H1
-  norm_num at H1
-  rw [mul_comm (Real.cos (angle y z))] at H1
-  have H2 : ortho y x ≠ 0 := by
-    apply aux05 Hy Hx
-    · rwa [angle_comm]
-    · rwa [angle_comm]
-  have H3 : ortho y z ≠ 0 := by
-    apply aux05 Hy Hz <;> assumption
-  have H4 : ‖normalize (ortho y x)‖ = 1 := by
-    exact norm_normalize_eq_one_iff.mpr H2
-  have H5 : ‖normalize (ortho y z)‖ = 1 := by
-    exact norm_normalize_eq_one_iff.mpr H3
-  have H6 : ⟪normalize (ortho y x), normalize (ortho y z)⟫ = - 1 := by
-    rw [inner_eq_neg_one_iff_of_norm_one H4 H5]
-    rw [aux01] <;> try assumption
-    unfold ortho
-    rw [H]
-    unfold normalize
-    rw [real_inner_smul_right, real_inner_smul_right]
-    use (kz / kx)
-    constructor
-    · exact div_pos Hkz Hkx
-    · apply aux04
-      · intro H6
-        rw [H6] at H; simp at H
-        rw [H] at Hy; simp at Hy
-      · exact Ne.symm (ne_of_lt Hkx)
-  rw [H6] at H1; ring_nf at H1
-  rw [mul_comm, ← Real.cos_add, inner_eq_cos_angle Hx Hz, add_comm] at H1
-  apply Real.injOn_cos ⟨angle_nonneg x z, angle_le_pi x z⟩ ⟨H0, H'⟩ at H1
-  exact H1
-
-set_option maxHeartbeats 1000000 in
--- asdf qwerty
-lemma aux07 {x y : V} (Hx : x ≠ 0) :
-    angle (normalize x) y = angle x y := by
-  unfold normalize
-  rw [angle_smul_left_of_pos]
-  simpa
-
-lemma aux08 {x y : V} (Hx : x ≠ 0) (Hy : y ≠ 0) :
-    angle (normalize x) (normalize y) = angle x y := by
-  rw [aux07 Hx, angle_comm, aux07 Hy, angle_comm]
-
-lemma aux08_1 {x y : V} (Hx : ‖x‖ = 1) (Hy : ‖y‖ = 1) (H : angle x y = Real.pi) :
-    x = -y := by
-  rw [angle_eq_pi_iff] at H
-  obtain ⟨_, ⟨r, ⟨H, H0⟩⟩⟩ := H
-  have H1 := H0
-  apply aux00 Hy Hx at H0
-  have H2 : r = -1 := by grind
-  rw [H2] at H1
-  rw [H1]; simp
-
-lemma aux09 {x y z : V} (Hx : ‖x‖ = 1) (Hy : ‖y‖ = 1) (Hz : ‖z‖ = 1)
-    {k : ℝ} (Hk : 0 < k) :
-    angle x z ≠ 0 →
-    angle x z ≠ Real.pi → y = normalize (x + k • z) → angle x y + angle y z ≤ Real.pi := by
-  intros H'' H' H
-  unfold angle; rw [Hx, Hy, Hz]; simp
-  have H0 : 0 ≤ Real.sin (Real.arccos ⟪x, y⟫ + Real.arccos ⟪y, z⟫) := by
-    rw [Real.sin_add, Real.sin_arccos, Real.sin_arccos, Real.cos_arccos, Real.cos_arccos]
-    · rw [H]
-      unfold normalize
-      have H0 : ‖x + k • z‖ ≠ 0 := by
-        intros H0
-        simp at H0
-        have H1 : x = (-k) • z := by
-          rw [← sub_eq_zero]; simp; exact H0
-        apply aux00 Hx Hz at H1
-        have H2 : k = 1 := by grind
-        rw [H2] at H0
-        simp at H0
-        rw [add_eq_zero_iff_eq_neg] at H0
-        apply H'
-        rw [angle_eq_pi_iff]
-        constructor
-        · intro H3; rw [H3] at Hx; simp at Hx
-        · use (-1); simp; rw [H0]; simp
-      have H1 : 1 - ⟪x, ‖x + k • z‖⁻¹ • (x + k • z)⟫ ^ 2 =
-                (‖x + k • z‖ ^ 2 - ⟪x, x + k • z⟫ ^ 2) / (‖x + k • z‖ ^ 2) := by
-        field_simp
-        rw [mul_sub, real_inner_smul_right]
-        field_simp
-      rw [H1, Real.sqrt_div' _ (sq_nonneg ‖x + k • z‖)]; clear H1
-      simp only [norm_nonneg, Real.sqrt_sq]
-      rw [real_inner_smul_left]
-      field_simp
-      rw [real_inner_smul_right]
-      field_simp
-      rw [Real.sqrt_div' _ (sq_nonneg ‖x + k • z‖)]
-      simp only [norm_nonneg, Real.sqrt_sq]
-      field_simp
-      rw [div_nonneg_iff]; left
-      constructor
-      · ring_nf
-        rw [← real_inner_self_eq_norm_sq]
-        have H1 : ⟪x + k • z, x + k • z⟫ = 1 + k ^ 2 + 2 * k * ⟪x, z⟫ := by
-          rw [inner_add_right, inner_add_left, real_inner_smul_left, real_inner_smul_right,
-              inner_add_left,
-              real_inner_smul_left,
-              real_inner_self_eq_norm_sq, real_inner_self_eq_norm_sq,
-              Hx, Hz]
-          simp; rw [real_inner_comm]; ring
-        rw [H1]
-        have H2 : ⟪x, x + k • z⟫ = 1 + k * ⟪x, z⟫ := by
-          rw [inner_add_right, real_inner_smul_right, real_inner_self_eq_norm_sq, Hx]; simp
-        have H3 : ⟪x + k • z, z⟫ = ⟪x, z⟫ + k := by
-          rw [inner_add_left, real_inner_smul_left, real_inner_self_eq_norm_sq, Hz]; simp
-        rw [H2, H3]; clear H1 H2 H3
-        ring_nf
-        rw [inner_eq_cos_angle Hx Hz]
-        rw [← Real.sin_sq, Real.sqrt_sq (sin_angle_nonneg x z)]
-        rw [show k ^ 2 - k ^ 2 * Real.cos (angle x z) ^ 2 =
-                (1 - Real.cos (angle x z) ^ 2) * k ^ 2 by ring]
-        rw [← Real.sin_sq, Real.sqrt_mul (sq_nonneg (Real.sin (angle x z)))]
-        rw [Real.sqrt_sq (sin_angle_nonneg x z)]
-        rw [Real.sqrt_sq (by linarith)]
-        have H1 : k * Real.cos (angle x z) * Real.sin (angle x z) + k * (Real.sin (angle x z) * k) +
-                  Real.cos (angle x z) * (Real.sin (angle x z) * k) + Real.sin (angle x z) =
-                  Real.sin (angle x z) * (1 + k ^ 2 + 2 * k * Real.cos (angle x z)) := by
-          ring
-        rw [H1]; clear H1
-        rw [mul_nonneg_iff]; left
-        constructor
-        · exact sin_angle_nonneg x z
-        · have H1 : 1 + k ^ 2 + 2 * k * Real.cos (angle x z) =
-                    (1 - k) ^ 2 + 2 * k * (1 + Real.cos (angle x z)) := by ring
-          have H2 : 0 ≤ (1 - k) ^ 2 := sq_nonneg (1 - k)
-          have H3 : 0 ≤ 2 * k * (1 + Real.cos (angle x z)) := by
-            rw [mul_nonneg_iff]; left; constructor
-            · simp; linarith
-            · have H3 : -1 ≤ Real.cos (angle x z) := Real.neg_one_le_cos (angle x z)
-              linarith
-          linarith
-      · exact sq_nonneg ‖x + k • z‖
-    · exact neg_one_le_inner Hx Hy
-    · rw [inner_eq_cos_angle Hx Hy]
-      exact Real.cos_le_one (angle x y)
-    · exact neg_one_le_inner Hy Hz
-    · rw [inner_eq_cos_angle Hy Hz]
-      exact Real.cos_le_one (angle y z)
-  · have H1 : Real.arccos ⟪x, y⟫ = angle x y := by
-      unfold angle; rw [Hx, Hy]; simp
-    have H2 : Real.arccos ⟪y, z⟫ = angle y z := by
-      unfold angle; rw [Hy, Hz]; simp
-    rw [H1, H2] at H0 ⊢
-    have H3 : angle x y ≤ Real.pi := angle_le_pi x y
-    have H4 : angle y z ≤ Real.pi := angle_le_pi y z
-    obtain H5 | H5 := eq_or_ne (angle x y + angle y z) (2 * Real.pi)
-    · have H6 : angle x y = Real.pi := by linarith
-      have H7 : angle y z = Real.pi := by linarith
-      apply aux08_1 Hx Hy at H6
-      apply aux08_1 Hy Hz at H7
-      have H8 : x = z := by
-        rw [H6, H7]; simp
-      rw [H8] at H''
-      unfold angle at H''
-      rw [real_inner_self_eq_norm_sq, Hz] at H''
-      simp at H''
-    · contrapose! H0
-      have H3 := @Real.sin_neg_of_neg_of_neg_pi_lt (angle x y + angle y z - 2 * Real.pi)
-                (by grind) (by linarith)
-      simp at H3; exact H3
-
-lemma aux09_1 {x y z : V} (Hx : x ≠ 0) (Hy : y ≠ 0) (Hz : z ≠ 0)
-    {kx kz : ℝ} (Hkx : 0 < kx) (Hkz : 0 < kz) :
-    angle x z ≠ 0 →
-    angle x z ≠ Real.pi → y = kx • x + kz • z → angle x y + angle y z ≤ Real.pi := by
-  intros H H0 H1
-  have H2 := @aux09 V _ _ (normalize x) (normalize ((‖x‖⁻¹ * kx⁻¹) • y)) (normalize z)
-    (norm_normalize_eq_one_iff.mpr Hx)
-  have H3 : ‖normalize ((‖x‖⁻¹ * kx⁻¹) • y)‖ = 1 := by
-    refine norm_normalize_eq_one_iff.mpr ?_
-    simp
-    refine ⟨⟨Hx, by grind⟩, Hy⟩
-  have Hx1 : 0 < ‖x‖ := norm_pos_iff.mpr Hx
-  have Hz1 : 0 < ‖z‖ := norm_pos_iff.mpr Hz
-  have H4 : 0 < kz / ‖x‖ / kx * ‖z‖ := by
-    rw [mul_pos_iff]; left
-    simp [Hz1]
-    rw [div_pos_iff]; left
-    simp [Hkx]
-    rw [div_pos_iff]; left
-    simp_all
-  have H5 : ‖normalize z‖ = 1 := norm_normalize_eq_one_iff.mpr Hz
-  rw [aux08 Hx Hz] at H2
-  have H6 : normalize ((‖x‖⁻¹ * kx⁻¹) • y) =
-            normalize (normalize x + (kz / ‖x‖ / kx * ‖z‖) • normalize z) := by
-    congr 1
-    rw [H1]
-    unfold normalize
-    match_scalars
-    · field_simp
-    · field_simp
-  have H7 : (‖x‖⁻¹ * kx⁻¹) • y ≠ 0 := by
-    simp
-    refine ⟨⟨Hx, by grind⟩, Hy⟩
-  rw [aux08 Hx H7] at H2
-  rw [aux08 H7 Hz] at H2
-  have H8 : 0 < ‖x‖⁻¹ * kx⁻¹ := by
-    rw [mul_pos_iff]; left
-    constructor
-    · exact inv_pos.mpr Hx1
-    · exact inv_pos.mpr Hkx
-  rw [angle_smul_right_of_pos x y H8] at H2
-  rw [angle_smul_left_of_pos y z H8] at H2
-  apply H2 H3 H5 H4 H H0 H6
-
-
-set_option maxHeartbeats 1000000 in
--- asdf qwerty
-lemma aux10 {x y z : V} (Hx : x ≠ 0) (Hy : y ≠ 0) (Hz : z ≠ 0)
-    (kx kz : ℝ) (Hkx : 0 < kx) (Hkz : 0 < kz) :
-    angle x y ≠ 0 → angle x y ≠ Real.pi →
-    angle y z ≠ 0 → angle y z ≠ Real.pi →
-    angle x z ≠ 0 → angle x z ≠ Real.pi →
-    y = kx • x + kz • z →
-    angle x z = angle x y + angle y z := by
-  intros H1 H2 H3 H4' H4 H5 H6
-  rw [← aux08 Hx Hz, ← aux08 Hx Hy, ← aux08 Hy Hz]
-  apply aux06
-  · exact norm_normalize_eq_one_iff.mpr Hx
-  · exact norm_normalize_eq_one_iff.mpr Hy
-  · exact norm_normalize_eq_one_iff.mpr Hz
-  · have temp : 0 < kx * ‖x‖ := by
-      rw [mul_pos_iff]
-      left; simp; tauto
-    exact temp
-  · have temp : 0 < kz * ‖z‖ := by
-      rw [mul_pos_iff]
-      left; simp; tauto
-    exact temp
-  · rw [aux08] <;> assumption
-  · rw [aux08] <;> assumption
-  · rw [aux08] <;> assumption
-  · rw [aux08] <;> assumption
-  · rw [H6]
-    congr 1
-    unfold normalize
-    match_scalars <;> field_simp
-  · rw [aux08 Hy Hz, aux08 Hx Hy]
-    apply aux09_1 Hx Hy Hz Hkx Hkz H4 H5 H6
-
-lemma aux11 {x y z : V} (Hx : x ≠ 0) (Hy : y ≠ 0) (Hz : z ≠ 0)
-    (kx kz : ℝ) (Hkx : 0 < kx) (Hkz : 0 < kz) :
-    angle x z ≠ Real.pi → y = kx • x + kz • z →
-    angle x z = angle x y + angle y z := by
-  intros H H0
-  obtain H1 | H1 := eq_or_ne (angle x z) 0
-  · rw [H1]
-    rw [angle_eq_zero_iff] at H1
-    obtain ⟨_, ⟨r, ⟨H1, H2⟩⟩⟩ := H1
-    rw [H2] at H0
-    have H3 : y = (kx + kz * r) • x := by
-      rw [H0]; module
-    have H4 : 0 < kx + kz * r := by nlinarith
-    rw [H3]
-    rw [angle_smul_right_of_pos x x H4]
-    rw [H2, angle_smul_left_of_pos _ _ H4, angle_smul_right_of_pos _ _ H1]
-    rw [angle_self Hx]
-    simp
-  obtain H2 | H2 := eq_or_ne (angle x y) 0
-  · rw [H2]; simp
-    rw [angle_eq_zero_iff] at H2
-    obtain ⟨_, ⟨r, ⟨H2, H3⟩⟩⟩ := H2
-    rw [H3, angle_smul_left_of_pos _ _ H2]
+  intros y
+  have Hz' : z ≠ 0 := by
+    intro H; rw [H] at Hz; simp at Hz
+  obtain H | H := eq_or_ne (angle x z) Real.pi
+  · have H0 : x = -z := aux08_2 Hx Hz H
+    subst H0; clear Hx H
+    have H1 : -z + k • z = (k - 1) • z := by module
+    obtain H2 | H2 | H2 := lt_trichotomy k 1
+    · have H3 : y = -z := by
+        unfold y
+        rw [H1, normalize_smul_of_neg (by linarith), normalize_eq_self_of_norm_one Hz]
+      rw [H3]; simp; exact angle_self Hz'
+    · have H3 : y = 0 := by
+        unfold y
+        rw [H1, H2]; simp
+      rw [H3]; simp; exact angle_neg_self_of_nonzero Hz'
+    · have H3 : y = z := by
+        unfold y
+        rw [H1, normalize_smul_of_pos (by linarith), normalize_eq_self_of_norm_one Hz]
+      rw [H3]; simp; exact angle_self Hz'
+  obtain H0 | H0 := eq_or_ne (angle x z) 0
+  · apply aux08_1 Hx Hz at H0
+    have H1 : y = z := by
+      unfold y
+      rw [H0, show z + k • z = (1 + k) • z by module, normalize_smul_of_pos (by linarith)]
+      rw [normalize_eq_self_of_norm_one Hz]
+    rw [H0, H1, angle_self Hz']; simp
+  have Hy' : x + k • z ≠ 0 := by
+    intros H2; have H3 := H2; unfold y at *
+    rw [add_eq_zero_iff_eq_neg, ← neg_smul] at H2
+    apply aux00 Hx Hz at H2
+    obtain H2 | H2 := H2
+    · linarith
+    · simp at H2
+      rw [H2, add_eq_zero_iff_eq_neg] at H3; simp at H3
+      rw [H3, angle_neg_left, angle_self Hz'] at H; simp at H
+  have Hy : ‖y‖ = 1 := by
+    unfold y
+    exact norm_normalize_eq_one_iff.mpr Hy'
+  obtain H1 | H1 := eq_or_ne (angle x y) 0
+  · have H2 : x = y := by
+      apply aux08_1 Hx Hy at H1
+      exact H1
+    rw [H1, H2]; simp
+  obtain H2 | H2 := eq_or_ne (angle y z) 0
+  · have H3 : y = z := by
+      apply aux08_1 Hy Hz at H2
+      exact H2
+    rw [H2, H3]; simp
+  have Hxyz : angle x y + angle y z ≤ Real.pi := aux09 Hx Hz Hk
   obtain H3 | H3 := eq_or_ne (angle x y) Real.pi
-  · rw [angle_eq_pi_iff] at H3
-    obtain ⟨_, ⟨r, ⟨H3, H4⟩⟩⟩ := H3
-    exfalso
-    apply H
-    rw [H0] at H4
-    have H5 : (kx - r) • x = (-kz) • z := by
-      rw [sub_smul]
-      rw [← H4]
-      module
-    have H6 : angle ((kx - r) • x) ((-kz) • z) = 0 := by
-      rw [H5, angle_self]
-      simp_all
-      linarith
-    rw [angle_smul_left_of_pos _ _ (by linarith)] at H6
-    rw [angle_smul_right_of_neg _ _ (by linarith)] at H6
-    rw [angle_neg_right] at H6
-    linarith
-  obtain H4 | H4 := eq_or_ne (angle y z) 0
-  · rw [H4]; simp
-    rw [angle_eq_zero_iff] at H4
-    obtain ⟨_, ⟨r, ⟨H4, H5⟩⟩⟩ := H4
-    rw [H5, angle_smul_right_of_pos _ _ H4]
-  obtain H5 | H5 := eq_or_ne (angle y z) Real.pi
-  · rw [angle_comm, angle_eq_pi_iff] at H5
-    obtain ⟨_, ⟨r, ⟨H5, H6⟩⟩⟩ := H5
-    exfalso
-    apply H
-    rw [H0] at H6
-    have H7 : kx • x = (r - kz) • z := by
-      rw [sub_smul, ← H6]
-      module
-    have H8 : angle (kx • x) ((r - kz) • z) = 0 := by
-      rw [H7, angle_self]
-      simp_all
-      linarith
-    rw [angle_smul_left_of_pos _ _ Hkx] at H8
-    rw [angle_smul_right_of_neg _ _ (by linarith)] at H8
-    rw [angle_neg_right] at H8
-    linarith
-  apply aux10 (kx := kx) (kz := kz) <;> try assumption
+  · have H5 : angle y z = 0 := by linarith [angle_nonneg y z]
+    tauto
+  obtain H4 | H4 := eq_or_ne (angle y z) Real.pi
+  · have H6 : angle x y = 0 := by linarith [angle_nonneg x y]
+    tauto
+  obtain Hk' | Hk' := eq_or_ne k 0
+  · subst k
+    have Hx' : x ≠ 0 := by intro H5; simp [H5] at Hx
+    unfold y; simp; rw [normalize_eq_self_of_norm_one Hx, angle_self Hx']; simp
+  have H5 : ⟪x, z⟫ = ⟪x, z⟫ := rfl
+  nth_rw 2 [angle_le_angle_add_angle_aux Hx Hy] at H5
+  nth_rw 2 [angle_le_angle_add_angle_aux Hz Hy] at H5
+  simp only [inner_add_left, inner_add_right, real_inner_smul_left, real_inner_smul_right] at H5
+  simp only [real_inner_comm y (normalize _), real_inner_self_eq_norm_sq, Hy,
+    angle_comm z y, inner_normalize_ortho] at H5
+  norm_num at H5
+  rw [mul_comm (Real.cos (angle y z))] at H5
+  have H6 : ortho y x ≠ 0 := by
+    apply aux05 Hy Hx <;> rwa [angle_comm]
+  have H7 : ortho y z ≠ 0 := by
+    apply aux05 Hy Hz <;> assumption
+  have H8 : ‖normalize (ortho y x)‖ = 1 := norm_normalize_eq_one_iff.mpr H6
+  have H9 : ‖normalize (ortho y z)‖ = 1 := norm_normalize_eq_one_iff.mpr H7
+  have H10 : ⟪normalize (ortho y x), normalize (ortho y z)⟫ = - 1 := by
+    rw [inner_eq_neg_one_iff_of_norm_one H8 H9]
+    rw [aux01_neg] <;> try assumption
+    unfold ortho y normalize
+    rw [real_inner_smul_right, real_inner_smul_right]
+    use -k; constructor
+    · grind
+    · match_scalars <;> field_simp <;>
+      rw [← real_inner_self_eq_norm_sq] <;>
+      simp [inner_add_left, inner_smul_left]
+  rw [H10] at H5; ring_nf at H5
+  rw [mul_comm, ← Real.cos_add, inner_eq_cos_angle Hx Hz, add_comm] at H5
+  apply Real.injOn_cos ⟨angle_nonneg x z, angle_le_pi x z⟩
+    ⟨by linarith [angle_nonneg x y, angle_nonneg y z], Hxyz⟩ at H5
+  exact H5
+
+lemma aux10 {x z : V} (Hx : x ≠ 0) (Hz : z ≠ 0) {kx kz : ℝ} (Hkx : 0 ≤ kx) (Hkz : 0 ≤ kz) :
+    let y := kx • x + kz • z
+    y ≠ 0 → angle x z = angle x y + angle y z := by
+  intro y H
+  have H' : 0 < kx ∨ 0 < kz := by
+    unfold y at H
+    obtain H0 | H0 := em (kx = 0 ∧ kz = 0)
+    · obtain ⟨H0, H1⟩ := H0
+      subst H0 H1; simp at H
+    · grind
+  obtain H0 | H0 := em (0 < kx)
+  · have H1 : 0 ≤ kz / ‖x‖ * ‖z‖ / kx := by
+      rw [div_nonneg_iff]; left; simp [*]
+      rw [div_nonneg_iff]; left; simp [*]
+    have H2 : normalize x + (kz / ‖x‖ * ‖z‖ / kx) • normalize z ≠ 0 := by
+      intros H3; apply H; unfold y; unfold normalize at H3
+      have H4 : ‖x‖ ≠ 0 := norm_ne_zero_iff.mpr Hx
+      rw [← smul_assoc, smul_eq_mul, ← smul_right_inj H4] at H3
+      rw [smul_add, ← smul_assoc, ← smul_assoc, smul_eq_mul, smul_eq_mul] at H3
+      field_simp at H3
+      have H5 : kx ≠ 0 := (ne_of_lt H0).symm
+      rw [← smul_right_inj H5, smul_add, ← smul_assoc, ← smul_assoc, smul_eq_mul, smul_eq_mul] at H3
+      field_simp at H3; simp at H3; exact H3
+    have H3 : normalize x + (kz / ‖x‖ * ‖z‖ / kx) • normalize z = (‖x‖⁻¹ / kx) • y := by
+      unfold y normalize
+      match_scalars <;> field_simp
+    have H4 := aux06 (norm_normalize_eq_one_iff.mpr Hx) (norm_normalize_eq_one_iff.mpr Hz) H1
+    simp at H4
+    rw [angle_normalize_left Hx, angle_normalize_left Hx, angle_normalize_left H2,
+        angle_normalize_right Hz, angle_normalize_right H2, angle_normalize_right Hz] at H4
+    have H5 : 0 < ‖x‖⁻¹ / kx := by
+      have H6 : 0 < ‖x‖ := norm_pos_iff.mpr Hx
+      have H7 : 0 < ‖x‖⁻¹ := inv_pos.mpr H6
+      exact div_pos H7 H0
+    rw [H3, angle_smul_right_of_pos _ _ H5, angle_smul_left_of_pos _ _ H5] at H4
+    exact H4
+  · have H1 : kx = 0 := by linarith
+    subst H1; simp at H'
+    have H1 : y = kz • z := by unfold y; simp
+    rw [H1, angle_smul_left_of_pos _ _ H', angle_smul_right_of_pos _ _ H', angle_self Hz, add_zero]
 
 lemma aux12 {x y z : V} (Hx : ‖x‖ = 1) (Hy : ‖y‖ = 1) (Hz : ‖z‖ = 1) :
-    angle x z ≠ 0 → angle x z ≠ Real.pi →
-    angle x y ≠ 0 → angle x y ≠ Real.pi →
-    angle y z ≠ 0 → angle y z ≠ Real.pi →
-    angle x z = angle x y + angle y z →
+    angle x z ≠ Real.pi → angle x z = angle x y + angle y z →
     Real.sin (angle x z) • y = Real.sin (angle y z) • x + Real.sin (angle x y) • z := by
-  intros H H0 H1 H2 H3 H4 H5
+  intros H H0
+  obtain H1 | H1 := eq_or_ne (angle x z) 0
+  · have H2 : angle x y = 0 := by linarith [angle_nonneg x y, angle_nonneg y z]
+    have H3 : angle y z = 0 := by linarith
+    rw [H1, H2, H3]; simp
+  obtain H2 | H2 := eq_or_ne (angle x y) 0
+  · rw [H2]; simp
+    apply aux08_1 Hx Hy at H2
+    rw [H2]
+  obtain H3 | H3 := eq_or_ne (angle y z) 0
+  · rw [H3]; simp
+    apply aux08_1 Hy Hz at H3
+    rw [H3]
+  obtain H4 | H4 := eq_or_ne (angle x y) Real.pi
+  · rw [H4] at H0
+    have H5 : angle y z = 0 := by linarith [angle_le_pi x z, angle_nonneg y z]
+    tauto
+  obtain H5 | H5 := eq_or_ne (angle y z) Real.pi
+  · rw [H5] at H0
+    have H6 : angle x y = 0 := by linarith [angle_le_pi x z, angle_nonneg x y]
+    tauto
   have H6 : ⟪x, z⟫ = ⟪x, z⟫ := rfl
   nth_rw 2 [angle_le_angle_add_angle_aux Hx Hy] at H6
   nth_rw 2 [angle_le_angle_add_angle_aux Hz Hy] at H6
@@ -625,7 +558,7 @@ lemma aux12 {x y z : V} (Hx : ‖x‖ = 1) (Hy : ‖y‖ = 1) (Hz : ‖z‖ = 1)
               real_inner_self_eq_norm_sq, Hy, angle_comm z y, inner_normalize_ortho] at H6
   norm_num at H6
   have H7 : ⟪x, z⟫ = Real.cos (angle x y + angle y z) := by
-    rw [← H5]
+    rw [← H0]
     exact inner_eq_cos_angle Hx Hz
   rw [H7] at H6
   rw [Real.cos_add] at H6
@@ -643,25 +576,18 @@ lemma aux12 {x y z : V} (Hx : ‖x‖ = 1) (Hy : ‖y‖ = 1) (Hz : ‖z‖ = 1)
   have H8 : ⟪normalize (ortho y x), normalize (ortho y z)⟫ = - 1 := by
     grind
   have H9 : ortho y x ≠ 0 := by
-    apply aux05 Hy Hx
-    · rw [angle_comm]; assumption
-    · rw [angle_comm]; assumption
+    apply aux05 Hy Hx <;> rwa [angle_comm]
   have H10 : ortho y z ≠ 0 := by
     apply aux05 Hy Hz <;> assumption
-  have H11 : ‖normalize (ortho y x)‖ = 1 := by
-    exact norm_normalize_eq_one_iff.mpr H9
-  have H12 : ‖normalize (ortho y z)‖ = 1 := by
-    exact norm_normalize_eq_one_iff.mpr H10
+  have H11 : ‖normalize (ortho y x)‖ = 1 := norm_normalize_eq_one_iff.mpr H9
+  have H12 : ‖normalize (ortho y z)‖ = 1 := norm_normalize_eq_one_iff.mpr H10
   rw [inner_eq_neg_one_iff_of_norm_one H11 H12] at H8
   nth_rw 2 [angle_le_angle_add_angle_aux Hx Hy]
   nth_rw 3 [angle_le_angle_add_angle_aux Hz Hy]
-  rw [H8]
-  rw [smul_add, smul_add]
-  simp
+  rw [H8, smul_add, smul_add]; simp
   match_scalars
   · norm_num
-    rw [H5, Real.sin_add]
-    rw [angle_comm z y]
+    rw [H0, Real.sin_add, angle_comm z y]
     ring
   · rw [angle_comm z y]
     ring
@@ -692,13 +618,10 @@ lemma aux13 {x y z : V} (Hx : ‖x‖ = 1) (Hy : ‖y‖ = 1) (Hz : ‖z‖ = 1)
     rw [H0]
     rw [angle_eq_zero_iff] at H4
     obtain ⟨H4, ⟨r, ⟨H5, H6⟩⟩⟩ := H4
-    rw [H6] at Hy
-    rw [norm_smul] at Hy
-    simp at Hy; rw [Hx] at Hy
-    simp at Hy
+    rw [H6, norm_smul, Real.norm_eq_abs, Hx, mul_one] at Hy
     have H7 : r = 1 := by
       have H7 := abs_cases r; grind
-    rw [H7] at H6; simp at H6
+    rw [H7, one_smul] at H6
     rw [H6]
   obtain H5 | H5 := eq_or_ne (angle y z) 0
   · rw [H5] at H0 ⊢
@@ -706,14 +629,10 @@ lemma aux13 {x y z : V} (Hx : ‖x‖ = 1) (Hy : ‖y‖ = 1) (Hz : ‖z‖ = 1)
     rw [H0]
     rw [angle_eq_zero_iff] at H5
     obtain ⟨H5, ⟨r, ⟨H6, H7⟩⟩⟩ := H5
-    rw [H7] at Hz
-    rw [norm_smul] at Hz
-    simp at Hz
-    rw [Hy] at Hz
-    simp at Hz
+    rw [H7, norm_smul, Real.norm_eq_abs, Hy, mul_one] at Hz
     have H8 : r = 1 := by
       have H7 := abs_cases r; grind
-    rw [H8] at H7; simp at H7
+    rw [H8, one_smul] at H7
     rw [H7]
   apply aux12 <;> assumption
 
@@ -722,19 +641,9 @@ theorem thm {x y z : V} (Hx : x ≠ 0) (Hy : y ≠ 0) (Hz : z ≠ 0) (Hxz : angl
     angle x z = angle x y + angle y z := by
   constructor <;> intro H
   · obtain ⟨kx, ⟨kz, ⟨Hkx, ⟨Hkz, H⟩⟩⟩⟩ := H
-    have H0 : kx = 0 ∨ 0 < kx := by exact Or.symm (LE.le.lt_or_eq' Hkx)
-    have H1 : kz = 0 ∨ 0 < kz := by exact Or.symm (LE.le.lt_or_eq' Hkz)
-    obtain H0 | H0 := H0 <;> obtain H1 | H1 := H1
-    · subst kx kz; simp at H; tauto
-    · subst kx; simp at H
-      rw [H, angle_smul_right_of_pos x z H1, angle_smul_left_of_pos z z H1]
-      simp
-      exact angle_self Hz
-    · subst kz; simp at H
-      rw [H, angle_smul_right_of_pos x x H0, angle_smul_left_of_pos x z H0]
-      simp
-      exact angle_self Hx
-    · exact aux11 Hx Hy Hz kx kz H0 H1 Hxz H
+    have H0 := aux10 Hx Hz Hkx Hkz; simp at H0
+    rw [← H] at H0
+    exact H0 Hy
   · obtain H0 | H0 := eq_or_ne (angle x z) 0
     · have H1 : angle x y = 0 := by linarith [angle_nonneg x y, angle_nonneg y z]
       rw [angle_eq_zero_iff] at H1
@@ -775,22 +684,21 @@ theorem thm {x y z : V} (Hx : x ≠ 0) (Hy : y ≠ 0) (Hz : z ≠ 0) (Hxz : angl
             · exact sin_angle_nonneg x z
           · exact norm_nonneg z
         · exact norm_nonneg y
-      · rw [aux03 _ _ (Real.sin (angle x z) / ‖y‖) H3]
+      · rw [← smul_right_inj H3]
         rw [smul_add, ← smul_assoc, ← smul_assoc, smul_eq_mul, smul_eq_mul]
         field_simp
         have H4 : ‖normalize y‖ = 1 := norm_normalize_eq_one_iff.mpr Hy
         have H5 : ‖normalize x‖ = 1 := norm_normalize_eq_one_iff.mpr Hx
         have H6 : ‖normalize z‖ = 1 := norm_normalize_eq_one_iff.mpr Hz
         have H7 := aux13 H5 H4 H6
-        rw [aux08 Hy Hz, aux08 Hx Hz, aux08 Hx Hy] at H7
-        have H8 := H7 Hxz H
+        simp at H7
+        rw [angle_normalize_left Hx, angle_normalize_right Hz, angle_normalize_left Hx,
+            angle_normalize_right Hy, angle_normalize_left Hy, angle_normalize_right Hz] at H7
+        have H8 := H7 Hxz H; clear H7
         unfold normalize at H8
-        rw [← smul_assoc, smul_eq_mul] at H8
-        have H9 : Real.sin (angle x z) * ‖y‖⁻¹ = Real.sin (angle x z) / ‖y‖ := by
-          field_simp
-        rw [H9] at H8
-        rw [H8]
-        match_scalars <;> field_simp
+        rw [← smul_assoc, ← smul_assoc, ← smul_assoc, smul_eq_mul, smul_eq_mul, smul_eq_mul] at H8
+        field_simp at H8
+        exact H8
 
 
 end tinkering
